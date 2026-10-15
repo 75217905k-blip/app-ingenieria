@@ -6,168 +6,52 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.spinner import Spinner
 from kivy.uix.scrollview import ScrollView
-from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.core.window import Window
-from kivy.graphics import Color, Rectangle, Line, Ellipse, RoundedRectangle, InstructionGroup
+from kivy.graphics import Color, Rectangle, Line, Ellipse, RoundedRectangle
 import math
 
-# Fondo general del sistema oscuro tecnológico profundo
-Window.clearcolor = (0.04, 0.06, 0.10, 1)
+# Fondo general estilo panel tecnológico oscuro/elegante
+Window.clearcolor = (0.07, 0.09, 0.13, 1)
 
-class TarjetaDashboardKit(BoxLayout):
-    """Tarjeta flotante con diseño moderno tipo Dashboard UI Kit."""
-    def __init__(self, bg_color=(0.08, 0.11, 0.18, 0.95), border_color=(0.18, 0.28, 0.45, 1), radius=[16], **kwargs):
+class TarjetaDashboard(BoxLayout):
+    def __init__(self, bg_color=(0.12, 0.15, 0.22, 1), radius=[16], **kwargs):
         super().__init__(**kwargs)
         self.bg_color = bg_color
-        self.border_color = border_color
         self.radius = radius
         with self.canvas.before:
-            # Sutil borde exterior de diseño
-            Color(*self.border_color)
-            self.rect_borde = RoundedRectangle(pos=(self.x-1, self.y-1), size=(self.width+2, self.height+2), radius=[r+1 for r in self.radius])
-            # Fondo interior de la tarjeta
             Color(*self.bg_color)
-            self.rect_fondo = RoundedRectangle(pos=self.pos, size=self.size, radius=self.radius)
-        self.bind(pos=self.actualizar_rects, size=self.actualizar_rects)
+            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=self.radius)
+        self.bind(pos=self.actualizar_rect, size=self.actualizar_rect)
 
-    def actualizar_rects(self, instance, value):
-        self.rect_borde.pos = (instance.x - 1, instance.y - 1)
-        self.rect_borde.size = (instance.width + 2, instance.height + 2)
-        self.rect_fondo.pos = instance.pos
-        self.rect_fondo.size = instance.size
+    def actualizar_rect(self, instance, value):
+        self.rect.pos = instance.pos
+        self.rect.size = instance.size
 
 
-class WidgetIlustracionCaratula(BoxLayout):
-    """Ilustración vectorial avanzada estilo neón para la carátula principal."""
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.bind(pos=self.dibujar, size=self.dibujar)
-
-    def dibujar(self, *args):
-        self.canvas.clear()
-        with self.canvas:
-            Color(0.06, 0.08, 0.14, 1)
-            Rectangle(pos=self.pos, size=self.size)
-
-            cx = self.center_x
-            cy = self.center_y
-            
-            vw = 150
-            vh = 190
-            vx = cx - (vw / 2)
-            vy = cy - (vh / 2) + 5
-
-            # Marco exterior de concreto con destello cian
-            Color(0.15, 0.55, 0.95, 0.3)
-            Line(rectangle=(vx-5, vy-5, vw+10, vh+10), width=1.5)
-            Color(0.2, 0.7, 1.0, 1)
-            Line(rectangle=(vx, vy, vw, vh), width=3.5)
-
-            # Estribo interior técnico
-            em = 14
-            Color(0.3, 0.85, 1.0, 0.85)
-            Line(rectangle=(vx + em, vy + em, vw - (em * 2), vh - (em * 2)), width=1.8)
-
-            # Acero inferior de tracción (Tocando el estribo)
-            radio = 7.5
-            Color(0.95, 0.98, 1.0, 1)
-            y_inf = vy + em + 2
-            x_left = vx + em + 2
-            x_right = vx + vw - em - (radio * 2) - 2
-            x_mid = cx - radio
-
-            Ellipse(pos=(x_left, y_inf), size=(radio*2, radio*2))
-            Ellipse(pos=(x_mid, y_inf), size=(radio*2, radio*2))
-            Ellipse(pos=(x_right, y_inf), size=(radio*2, radio*2))
-
-            # Acero superior de montaje
-            y_sup = vy + vh - em - (radio * 2) - 2
-            Ellipse(pos=(x_left, y_sup), size=(radio*2, radio*2))
-            Ellipse(pos=(x_right, y_sup), size=(radio*2, radio*2))
-
-
-class PantallaCaratula(Screen):
-    """Pantalla 1: Carátula principal con diseño Dashboard UI Kit."""
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        
-        layout = BoxLayout(orientation='vertical', padding=18, spacing=15)
-        
-        # Tarjeta de Título estilo Dashboard
-        tarjeta_titulo = TarjetaDashboardKit(bg_color=(0.07, 0.10, 0.17, 0.95), border_color=(0.2, 0.4, 0.7, 0.8), orientation='vertical', padding=16, spacing=10, size_hint_y=None, height=140)
-        
-        lbl_titulo = Label(
-            text="[b][size=24sp]STRUCTURAL DASHBOARD[/size][/b]\n[color=4EA8DE][size=17sp]DISEÑO DE VIGAS POR FLEXIÓN[/size][/color]",
-            font_size='20sp',
-            color=(1, 1, 1, 1),
-            halign='center',
-            valign='middle',
-            markup=True
-        )
-        lbl_titulo.bind(size=lbl_titulo.setter('text_size'))
-        
-        lbl_normas = Label(
-            text="Norma Peruana NTE E.060  •  Código ACI 318",
-            font_size='12sp',
-            color=(0.65, 0.75, 0.85, 1),
-            halign='center',
-            valign='middle'
-        )
-        lbl_normas.bind(size=lbl_normas.setter('text_size'))
-
-        tarjeta_titulo.add_widget(lbl_titulo)
-        tarjeta_titulo.add_widget(lbl_normas)
-
-        # Ilustración central
-        self.ilustracion = WidgetIlustracionCaratula(size_hint_y=1)
-
-        # Botón de Inicio Moderno
-        btn_entrar = Button(
-            text="INICIAR SISTEMA DE CÁLCULO",
-            font_size='15sp',
-            bold=True,
-            background_normal='',
-            background_color=(0.08, 0.6, 0.4, 1),
-            color=(1, 1, 1, 1),
-            size_hint_y=None,
-            height=54
-        )
-        btn_entrar.bind(on_press=self.ir_a_calculadora)
-
-        layout.add_widget(tarjeta_titulo)
-        layout.add_widget(self.ilustracion)
-        layout.add_widget(btn_entrar)
-
-        self.add_widget(layout)
-
-    def ir_a_calculadora(self, instance):
-        self.manager.current = 'calculadora'
-
-
-class WidgetDeVigaDashboard(BoxLayout):
-    """Widget gráfico de sección transversal adaptado al kit de diseño tecnológico."""
+class WidgetDeViga(BoxLayout):
+    """Widget gráfico interactivo grande, detallado y proporcional para la sección de concreto y varillas de acero."""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.b = 30.0
         self.h = 75.0
-        self.num_barras_inf = 3
-        self.estado_color = (0.08, 0.7, 0.45, 1)
+        self.num_barras_inf = 3  
+        self.estado_color = (0.1, 0.75, 0.4, 1)
         self.bind(pos=self.actualizar_dibujo, size=self.actualizar_dibujo)
 
     def actualizar_parametros(self, b, h, num_inf, cumple):
-        self.b = max(10.0, float(b))
-        self.h = max(10.0, float(h))
+        self.b = max(15.0, float(b))
+        self.h = max(20.0, float(h))
         self.num_barras_inf = max(2, int(num_inf))
-        self.estado_color = (0.08, 0.7, 0.45, 1) if cumple else (0.85, 0.3, 0.3, 1)
+        self.estado_color = (0.1, 0.75, 0.4, 1) if cumple else (0.9, 0.3, 0.3, 1)
         self.actualizar_dibujo()
 
     def actualizar_dibujo(self, *args):
         self.canvas.clear()
         with self.canvas:
-            Color(0.06, 0.08, 0.13, 1)
+            Color(0.05, 0.07, 0.11, 1)
             Rectangle(pos=self.pos, size=self.size)
 
-            padding = 16
+            padding = 20
             w_disp = self.width - (padding * 2)
             h_disp = self.height - (padding * 2)
             
@@ -181,91 +65,73 @@ class WidgetDeVigaDashboard(BoxLayout):
             viga_x = self.x + (self.width - viga_w) / 2
             viga_y = self.y + (self.height - viga_h) / 2
 
-            # Contorno estructural con indicador de estado
+            # 1. Contorno exterior de la sección de concreto
             Color(*self.estado_color)
-            Line(rectangle=(viga_x, viga_y, viga_w, viga_h), width=3.5)
+            Line(rectangle=(viga_x, viga_y, viga_w, viga_h), width=4.0)
 
-            # Estribo interior
-            estribo_m = 7
-            if viga_w > (estribo_m * 2) and viga_h > (estribo_m * 2):
+            # 2. Estribo interior
+            recubrimiento = max(4.0, 0.1 * viga_w)
+            estribo_x = viga_x + recubrimiento
+            estribo_y = viga_y + recubrimiento
+            estribo_w = viga_w - (recubrimiento * 2)
+            estribo_h = viga_h - (recubrimiento * 2)
+
+            if estribo_w > 10 and estribo_h > 10:
                 Color(0.4, 0.55, 0.75, 1)
-                estribo_x = viga_x + estribo_m
-                estribo_y = viga_y + estribo_m
-                estribo_w = viga_w - (estribo_m * 2)
-                estribo_h = viga_h - (estribo_m * 2)
-                Line(rectangle=(estribo_x, estribo_y, estribo_w, estribo_h), width=1.6)
-            else:
-                return
+                Line(rectangle=(estribo_x, estribo_y, estribo_w, estribo_h), width=2.0)
 
-            # Acero Inferior (Tracción chocando exactamente con el estribo)
-            radio = 5.5
+            # 3. Dibujo detallado de varillas de acero inferior (Tracción)
+            radio = max(7.0, min(12.0, estribo_w / (self.num_barras_inf * 2.2)))
             Color(0.95, 0.98, 1.0, 1)
-            y_pos = estribo_y + 2
+            
+            y_pos = estribo_y + 4
             
             if self.num_barras_inf == 2:
-                xs_inf = [estribo_x + 2, estribo_x + estribo_w - (radio * 2) - 2]
+                xs_inf = [estribo_x + 4, estribo_x + estribo_w - (radio * 2) - 4]
             else:
-                ancho_util = estribo_w - 4 - (radio * 2)
+                ancho_util = estribo_w - 8 - (radio * 2)
                 paso_inf = ancho_util / (self.num_barras_inf - 1)
-                xs_inf = [estribo_x + 2 + (i * paso_inf) for i in range(self.num_barras_inf)]
+                xs_inf = [estribo_x + 4 + (i * paso_inf) for i in range(self.num_barras_inf)]
 
             for x_i in xs_inf:
-                Ellipse(pos=(x_i, y_pos), size=(radio*2, radio*2))
+                Ellipse(pos=(x_i, y_pos), size=(radio * 2, radio * 2))
 
 
-class PantallaCalculadora(Screen):
-    """Pantalla 2: Panel de Control y Cálculo con UI Kit Tecnológico."""
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class StructuralDashboardApp(App):
+    def build(self):
+        self.title = 'Structural Dashboard - Viga Flexión'
         
         root = ScrollView(size_hint=(1, 1), do_scroll_x=False)
-        main_layout = BoxLayout(orientation='vertical', padding=10, spacing=12, size_hint_y=None)
+        main_layout = BoxLayout(orientation='vertical', padding=10, spacing=10, size_hint_y=None)
         main_layout.bind(minimum_height=main_layout.setter('height'))
-        
-        # Barra de navegación superior
-        header_card = TarjetaDashboardKit(bg_color=(0.07, 0.10, 0.17, 1), border_color=(0.18, 0.3, 0.5, 1), orientation='vertical', padding=10, spacing=6, size_hint_y=None)
-        header_card.bind(minimum_height=header_card.setter('height'))
-        
-        top_bar = BoxLayout(orientation='horizontal', size_hint_y=None, height=36)
-        btn_volver = Button(
-            text="◄ MENÚ",
-            size_hint_x=None,
-            width=85,
-            background_normal='',
-            background_color=(0.15, 0.25, 0.4, 1),
-            color=(1, 1, 1, 1),
-            font_size='12sp',
-            bold=True
-        )
-        btn_volver.bind(on_press=self.regresar_caratula)
-        top_bar.add_widget(btn_volver)
-        top_bar.add_widget(Label(text="[b]PANEL DE CÁLCULO - VIGA[/b]", font_size='14sp', color=(0.8, 0.9, 1, 1), markup=True, halign='center'))
-        header_card.add_widget(top_bar)
+
+        # Barra Superior / Título
+        header_card = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=10, spacing=6, size_hint_y=None, height=75)
+        header_card.add_widget(Label(text="[b][size=16sp]STRUCTURAL DASHBOARD[/size][/b]", color=(1,1,1,1), markup=True, halign='center'))
+        header_card.add_widget(Label(text="[color=4EA8DE]Diseño por Flexión (NTE E.060 / ACI 318)[/color]", font_size='12sp', color=(0.8,0.9,1,1), markup=True, halign='center'))
         main_layout.add_widget(header_card)
 
-        # Tarjeta de Formulario de Parámetros
-        form_card = TarjetaDashboardKit(bg_color=(0.07, 0.10, 0.17, 1), border_color=(0.18, 0.3, 0.5, 1), orientation='vertical', padding=12, spacing=10, size_hint_y=None)
+        # Tarjeta de Parámetros de Entrada
+        form_card = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=12, spacing=8, size_hint_y=None)
         form_card.bind(minimum_height=form_card.setter('height'))
 
-        form_card.add_widget(Label(text="Norma de Diseño:", font_size='13sp', bold=True, color=(0.7, 0.85, 1, 1), size_hint_y=None, height=20, halign="left"))
-        self.spinner_norma = Spinner(
+        form_card.add_widget(Label(text="Norma de Diseño:", font_size='13sp', bold=True, color=(0.8, 0.85, 0.9, 1), size_hint_y=None, height=20, halign="left"))
+        self.norma = Spinner(
             text='Norma Peruana NTE E.060', 
             values=('Norma Peruana NTE E.060', 'Código ACI 318'), 
             size_hint_y=None, 
-            height=42, 
-            font_size='14sp',
-            background_normal='',
-            background_color=(0.12, 0.22, 0.38, 1)
+            height=40, 
+            font_size='13sp',
+            background_color=(0.15, 0.3, 0.5, 1)
         )
-        form_card.add_widget(self.spinner_norma)
+        form_card.add_widget(self.norma)
 
-        grid = GridLayout(cols=2, spacing=10, size_hint_y=None)
+        grid = GridLayout(cols=2, spacing=8, size_hint_y=None)
         grid.bind(minimum_height=grid.setter('height'))
 
         fields = [
-            ("Base b (cm):", "30"),
+            ("Base b (cm) [Min 25]:", "30"),
             ("Altura h (cm):", "75"),
-            ("Peralte efectivo d (cm):", "69"),
             ("Concreto f'c (Kg/cm²):", "210"),
             ("Acero fy (Kg/cm²):", "4200"),
             ("Momento Último Mu (Tn·m):", "30"),
@@ -282,7 +148,7 @@ class PantallaCalculadora(Screen):
                 halign='left',
                 valign='middle',
                 size_hint_y=None,
-                height=42
+                height=38
             )
             lbl.bind(size=lbl.setter('text_size'))
             
@@ -290,15 +156,13 @@ class PantallaCalculadora(Screen):
                 text=default_val,
                 multiline=False,
                 input_filter='float',
-                font_size='16sp',
+                font_size='15sp',
                 halign='center',
-                background_normal='',
-                background_color=(0.12, 0.16, 0.25, 1),
+                background_color=(0.18, 0.22, 0.3, 1),
                 foreground_color=(1, 1, 1, 1),
-                cursor_color=(0.3, 0.7, 1, 1),
                 size_hint_y=None,
-                height=42,
-                padding=[6, 8, 6, 8]
+                height=38,
+                padding=[4, 6, 4, 6]
             )
             grid.add_widget(lbl)
             grid.add_widget(inp)
@@ -307,59 +171,56 @@ class PantallaCalculadora(Screen):
         form_card.add_widget(grid)
         main_layout.add_widget(form_card)
 
-        # Botón de Cálculo Estilo Dashboard Pro
+        # Botón de cálculo interactivo directo
         btn_calcular = Button(
-            text="▶  PROCESAR CÁLCULO DE ACERO",
-            font_size='15sp',
+            text="▶  PROCESAR CÁLCULO Y ACTUALIZAR VIGA",
+            font_size='14sp',
             bold=True,
             background_normal='',
-            background_color=(0.08, 0.6, 0.4, 1),
+            background_color=(0.1, 0.65, 0.4, 1),
             color=(1, 1, 1, 1),
             size_hint_y=None,
-            height=50
+            height=48
         )
         btn_calcular.bind(on_press=self.ejecutar_diseno)
         main_layout.add_widget(btn_calcular)
 
-        # Tarjeta Visualizadora de la Seccion Transversal (Panel Gráfico)
-        self.viga_canvas = WidgetDeVigaDashboard(size_hint_y=None, height=190)
+        # Bloque gráfico dinámico grande
+        self.viga_canvas = WidgetDeViga(size_hint_y=None, height=260)
         main_layout.add_widget(self.viga_canvas)
 
-        # Tarjeta de Resultados Estilo Reporte Técnico
-        self.res_card = TarjetaDashboardKit(bg_color=(0.07, 0.10, 0.17, 1), border_color=(0.18, 0.3, 0.5, 1), orientation='vertical', padding=14, spacing=8, size_hint_y=None)
-        self.res_card.bind(minimum_height=self.res_card.setter('height'))
-
+        # Tarjeta de Resultados ampliada y limpia
+        self.res_card = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=14, spacing=8, size_hint_y=None, height=230)
+        
         self.resultado_label = Label(
-            text="[color=667788]Configure los parámetros y presione [PROCESAR CÁLCULO DE ACERO][/color]",
-            font_size='14sp',
+            text="[color=667788]Ingrese los datos arriba y presione [PROCESAR CÁLCULO][/color]",
+            font_size='13sp',
             color=(0.9, 0.9, 0.9, 1),
             halign="left",
             valign="top",
             markup=True,
             size_hint_y=None,
-            height=260
+            height=200
         )
         self.resultado_label.bind(size=self.resultado_label.setter('text_size'))
         self.res_card.add_widget(self.resultado_label)
         main_layout.add_widget(self.res_card)
 
         root.add_widget(main_layout)
-        self.add_widget(root)
-
-    def regresar_caratula(self, instance):
-        self.manager.current = 'caratula'
+        return root
 
     def ejecutar_diseno(self, instance):
         try:
-            b = float(self.inputs["Base b (cm):"].text)
+            b = float(self.inputs["Base b (cm) [Min 25]:"].text)
             
             if b < 25.0:
-                self.resultado_label.text = f"[color=FF6B6B][b]❌ RESTRICCIÓN NORMATIVA:[/b]\nLa base 'b' ingresada es {b} cm. El ancho mínimo permitido es [b]25 cm[/b].[/color]"
+                self.resultado_label.text = f"[color=FF6B6B][b]❌ RESTRICCIÓN NORMATIVA (NTE E.060):[/b]\nLa base 'b' es {b} cm. El ancho mínimo es [b]25 cm[/b].[/color]"
                 self.viga_canvas.actualizar_parametros(b, float(self.inputs["Altura h (cm):"].text), 2, cumple=False)
                 return
 
             h = float(self.inputs["Altura h (cm):"].text)
-            d = float(self.inputs["Peralte efectivo d (cm):"].text)
+            d = h - 6.0  # Peralte efectivo automático
+
             fc = float(self.inputs["Concreto f'c (Kg/cm²):"].text)
             fy = float(self.inputs["Acero fy (Kg/cm²):"].text)
             mu_tn = float(self.inputs["Momento Último Mu (Tn·m):"].text)
@@ -369,7 +230,7 @@ class PantallaCalculadora(Screen):
             k = mu_kgcm / (phi * fc * b * (d ** 2))
             
             if (1.0 - 2.36 * k) < 0:
-                self.resultado_label.text = "[color=FF6B6B][b]❌ ERROR:[/b] Momento Mu excesivo para las dimensiones de la sección.[/color]"
+                self.resultado_label.text = "[color=FF6B6B][b]❌ ERROR DE DISEÑO:[/b] Momento Mu excesivo para las dimensiones de la sección.[/color]"
                 self.viga_canvas.actualizar_parametros(b, h, 2, cumple=False)
                 return
                 
@@ -384,7 +245,7 @@ class PantallaCalculadora(Screen):
             beta1 = 0.85 if fc <= 280 else max(0.85 - (0.05 * (fc - 280) / 70), 0.65)
             rho_b = (0.85 * beta1 * fc / fy) * (6000 / (6000 + fy))
             
-            if "E.060" in self.spinner_norma.text:
+            if "E.060" in self.norma.text:
                 rho_max = 0.75 * rho_b
                 nombre_norma = "NTE E.060 (Perú)"
             else:
@@ -394,6 +255,7 @@ class PantallaCalculadora(Screen):
             as_max = rho_max * b * d
             as_diseno = max(as_calculado, as_min_norma)
             
+            # Varilla de 5/8" (Área = 1.99 cm²)
             area_varilla = 1.99 
             num_inf = math.ceil(as_diseno / area_varilla)
             num_inf = max(2, num_inf)
@@ -402,36 +264,27 @@ class PantallaCalculadora(Screen):
             if as_calculado > as_max:
                 cumple = False
 
+            # Actualizar gráfico
             self.viga_canvas.actualizar_parametros(b, h, num_inf, cumple=cumple)
 
-            # Reporte formateado con estilo Dashboard Kit
-            txt = f"[b][size=16sp][color=4EA8DE]RESULTADOS [{nombre_norma}][/color][/size][/b]\n"
-            txt += f"[color=203045]────────────────────────────────────────[/color]\n"
-            txt += f"• [color=AACCFF]Parámetro K:[/color] [b]{k:.4f}[/b]   |   [color=AACCFF]Parámetro w:[/color] [b]{w:.4f}[/b]\n"
-            txt += f"• [color=AACCFF]Acero Calculado:[/color] [b]{as_calculado:.2f} cm²[/b]\n"
-            txt += f"• [color=AACCFF]Acero Mín / Máx:[/color] [b]{as_min_norma:.2f} / {as_max:.2f} cm²[/b]\n\n"
-            txt += f"[size=15sp]🔥 [color=FFFFFF]ACERO FINAL (Tracción):[/color] [b][color=4EA8DE]{as_diseno:.2f} cm²[/color][/b][/size]\n"
-            txt += f"• [color=AACCFF]Detalle Gráfico:[/color] [b]{num_inf} varillas inferiores (Tracción)[/b]\n\n"
+            # Formato estricto solicitado: Cuantías y K, w a 4 decimales; Áreas y dimensiones a 2 decimales
+            txt = f"[b][size=14sp][color=4EA8DE]RESULTADOS [{nombre_norma}][/color][/size][/b]\n"
+            txt += f"• Peralte efectivo [b]d = {d:.2f} cm[/b] (h - 6)\n"
+            txt += f"• [color=AACCFF]K:[/color] [b]{k:.4f}[/b]  |  [color=AACCFF]w:[/color] [b]{w:.4f}[/b]  |  [color=AACCFF]ρ:[/color] [b]{rho:.4f}[/b]\n"
+            txt += f"• Acero Calc: [b]{as_calculado:.2f} cm²[/b]  |  Mín/Máx: [b]{as_min_norma:.2f} / {as_max:.2f} cm²[/b]\n"
+            txt += f"[size=14sp]🔥 [color=FFFFFF]ACERO TRACCIÓN (As):[/color] [b][color=4EA8DE]{as_diseno:.2f} cm²[/b][/size]\n"
+            txt += f"• Detalle Gráfico: [b]{num_inf} varillas (con separación reglamentaria)[/b]\n"
             
             if as_calculado < as_min_norma:
-                txt += "[color=FFD166][b]⚠️ NOTA: Se asignó el Acero Mínimo por norma.[/b][/color]"
+                txt += "[color=FFD166][b]⚠️ Asignado Acero Mínimo por norma.[/b][/color]"
             elif as_calculado > as_max:
-                txt += "[color=FF6B6B][b]❌ ALERTA: ¡SECCIÓN SOBREFORZADA! Excede el máximo.[/b][/color]"
+                txt += "[color=FF6B6B][b]❌ ALERTA: ¡Sección sobreforzada![/b][/color]"
             else:
-                txt += "[color=06D6A0][b]✅ DISEÑO CORRECTO: Cumple con la cuantía.[/b][/color]"
+                txt += "[color=06D6A0][b]✅ Diseño correcto (Cumple cuantía).[/b][/color]"
                 
             self.resultado_label.text = txt
         except Exception as e:
-            self.resultado_label.text = f"[color=FF6B6B][b]❌ Error en los datos:[/b] {str(e)}[/color]"
-
-
-class StructuralDashboardApp(App):
-    def build(self):
-        self.title = 'Structural Dashboard - Diseño de Vigas'
-        sm = ScreenManager()
-        sm.add_widget(PantallaCaratula(name='caratula'))
-        sm.add_widget(PantallaCalculadora(name='calculadora'))
-        return sm
+            self.resultado_label.text = f"[color=FF6B6B][b]❌ Error:[/b] {str(e)}[/color]"
 
 
 if __name__ == '__main__':
