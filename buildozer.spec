@@ -9,7 +9,7 @@ package.name = calculadoraingenieria
 # (str) Package domain (needed for android packaging)
 package.domain = org.ingenieria
 
-# (list) Source files to include (let it empty to include all files)
+# (list) Source files to include
 source.include_exts = py,png,jpg,kv,atlas
 
 # (str) Source directory where the application lives
@@ -27,8 +27,20 @@ orientation = portrait
 # (list) Permissions
 android.permissions = INTERNET
 
-# (list) The Android archs to build for (soluciona el error compilando solo para 64 bits)
+# (int) Target Android API
+android.api = 33
+
+# (int) Minimum API supported
+android.minapi = 21
+
+# (str) Android NDK version
+android.ndk = 25b
+
+# (list) The Android archs to build for
 android.archs = arm64-v8a
+
+# (bool) Accept SDK license automatically
+android.accept_sdk_license = True
 
 [buildozer]
 log_level = 2
