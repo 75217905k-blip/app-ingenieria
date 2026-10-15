@@ -8,15 +8,14 @@ from kivy.uix.spinner import Spinner
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.core.window import Window
-from kivy.graphics import Color, Rectangle, Line, Ellipse, RoundedRectangle, InstructionGroup
-import os
+from kivy.graphics import Color, Rectangle, Line, Ellipse, RoundedRectangle
 import math
 
-# Fondo general oscuro
-Window.clearcolor = (0.07, 0.09, 0.13, 1)
+# Fondo general oscuro tecnológico
+Window.clearcolor = (0.05, 0.07, 0.11, 1)
 
 class TarjetaAncha(BoxLayout):
-    def __init__(self, bg_color=(0.12, 0.15, 0.22, 1), radius=[12], **kwargs):
+    def __init__(self, bg_color=(0.1, 0.14, 0.2, 0.9), radius=[14], **kwargs):
         super().__init__(**kwargs)
         self.bg_color = bg_color
         self.radius = radius
@@ -30,22 +29,68 @@ class TarjetaAncha(BoxLayout):
         self.rect.size = instance.size
 
 
+class WidgetIlustracionViga(BoxLayout):
+    """Ilustración vectorial animada/estilizada de una viga de concreto con estribos y acero para la carátula."""
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.bind(pos=self.dibujar_ilustracion, size=self.dibujar_ilustracion)
+
+    def dibujar_ilustracion(self, *args):
+        self.canvas.clear()
+        with self.canvas:
+            # Fondo oscuro con sutil brillo central
+            Color(0.06, 0.09, 0.15, 1)
+            Rectangle(pos=self.pos, size=self.size)
+
+            cx = self.center_x
+            cy = self.center_y
+            
+            # Dimensiones de la viga ilustrativa en la carátula
+            vw = 140
+            vh = 180
+            vx = cx - (vw / 2)
+            vy = cy - (vh / 2) + 10
+
+            # Contorno exterior de concreto (Efecto Neón Azul)
+            Color(0.1, 0.5, 0.9, 0.3)
+            Line(rectangle=(vx-4, vy-4, vw+8, vh+8), width=2)
+            
+            Color(0.2, 0.7, 1.0, 1)
+            Line(rectangle=(vx, vy, vw, vh), width=3.5)
+
+            # Estribo interior
+            em = 12
+            Color(0.3, 0.85, 1.0, 0.8)
+            Line(rectangle=(vx + em, vy + em, vw - (em * 2), vh - (em * 2)), width=1.8)
+
+            # Barras de acero inferiores (Tracción tocando el estribo)
+            radio = 7.0
+            Color(0.9, 0.95, 1.0, 1)
+            y_inf = vy + em + 2
+            x_left = vx + em + 2
+            x_right = vx + vw - em - (radio * 2) - 2
+            x_mid = cx - radio
+
+            # Dibujar 3 varillas inferiores
+            Ellipse(pos=(x_left, y_inf), size=(radio*2, radio*2))
+            Ellipse(pos=(x_mid, y_inf), size=(radio*2, radio*2))
+            Ellipse(pos=(x_right, y_inf), size=(radio*2, radio*2))
+
+            # Barras de acero superiores (Montaje)
+            y_sup = vy + vh - em - (radio * 2) - 2
+            Ellipse(pos=(x_left, y_sup), size=(radio*2, radio*2))
+            Ellipse(pos=(x_right, y_sup), size=(radio*2, radio*2))
+
+
 class PantallaCaratula(Screen):
-    """Pantalla 1: Carátula de bienvenida con soporte para imagen de fondo (fondo_caratula.jpg)"""
+    """Pantalla 1: Carátula con ilustración vectorial integrada (cero errores de archivos)"""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
-        # Layout principal de la carátula
-        layout = BoxLayout(orientation='vertical', padding=24, spacing=20)
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
         
-        # Verificamos si existe la imagen de fondo personalizada
-        with self.canvas.before:
-            self.bg_group = InstructionGroup()
-            self.actualizar_fondo(self, self.size)
-        self.bind(size=self.actualizar_fondo, pos=self.actualizar_fondo)
-
-        # Tarjeta superior con título
-        tarjeta_titulo = TarjetaAncha(bg_color=(0.08, 0.12, 0.2, 0.85), orientation='vertical', padding=20, spacing=15, size_hint_y=None, height=180)
+        # Título superior
+        tarjeta_titulo = TarjetaAncha(bg_color=(0.1, 0.14, 0.22, 0.95), orientation='vertical', padding=16, spacing=10, size_hint_y=None, height=130)
         
         lbl_titulo = Label(
             text="[b][size=26sp]DISEÑO DE VIGAS[/size][/b]\n[color=4EA8DE][size=18sp]POR FLEXIÓN[/size][/color]",
@@ -69,7 +114,10 @@ class PantallaCaratula(Screen):
         tarjeta_titulo.add_widget(lbl_titulo)
         tarjeta_titulo.add_widget(lbl_normas)
 
-        # Botón para ingresar a la calculadora
+        # Ilustración central de la viga
+        self.ilustracion = WidgetIlustracionViga(size_hint_y=1)
+
+        # Botón para ingresar
         btn_entrar = Button(
             text="INICIAR SISTEMA DE CÁLCULO",
             font_size='16sp',
@@ -82,23 +130,11 @@ class PantallaCaratula(Screen):
         )
         btn_entrar.bind(on_press=self.ir_a_calculadora)
 
-        layout.add_widget(BoxLayout(size_hint_y=0.2)) # Espaciador superior
         layout.add_widget(tarjeta_titulo)
-        layout.add_widget(BoxLayout(size_hint_y=0.4)) # Espaciador central
+        layout.add_widget(self.ilustracion)
         layout.add_widget(btn_entrar)
 
         self.add_widget(layout)
-
-    def actualizar_fondo(self, instance, value):
-        self.bg_group.clear()
-        with self.bg_group:
-            if os.path.exists('fondo_caratula.jpg'):
-                Color(1, 1, 1, 1)
-                Rectangle(source='fondo_caratula.jpg', pos=self.pos, size=self.size)
-            else:
-                # Color sólido por defecto si aún no suben la imagen
-                Color(0.07, 0.09, 0.13, 1)
-                Rectangle(pos=self.pos, size=self.size)
 
     def ir_a_calculadora(self, instance):
         self.manager.current = 'calculadora'
@@ -141,11 +177,9 @@ class WidgetDeVigaAmplio(BoxLayout):
             viga_x = self.x + (self.width - viga_w) / 2
             viga_y = self.y + (self.height - viga_h) / 2
 
-            # Contorno de Concreto
             Color(*self.estado_color)
             Line(rectangle=(viga_x, viga_y, viga_w, viga_h), width=4)
 
-            # Estribo interior
             estribo_m = 7
             if viga_w > (estribo_m * 2) and viga_h > (estribo_m * 2):
                 Color(0.5, 0.6, 0.7, 1)
@@ -157,11 +191,9 @@ class WidgetDeVigaAmplio(BoxLayout):
             else:
                 return
 
-            # Acero Inferior: Ajustado para que las barras de los extremos toquen exactamente los bordes del estribo
             radio = 6.0
-            Color(0.95, 0.95, 0.95, 1) # Color acero brillante
-            
-            y_pos = estribo_y + 2 # Pegado al borde inferior del estribo
+            Color(0.95, 0.95, 0.95, 1)
+            y_pos = estribo_y + 2
             
             if self.num_barras_inf == 2:
                 xs_inf = [estribo_x + 2, estribo_x + estribo_w - (radio * 2) - 2]
@@ -175,7 +207,7 @@ class WidgetDeVigaAmplio(BoxLayout):
 
 
 class PantallaCalculadora(Screen):
-    """Pantalla 2: Calculadora principal con ancho al 100%"""
+    """Pantalla 2: Calculadora principal al 100% de ancho"""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
@@ -183,7 +215,6 @@ class PantallaCalculadora(Screen):
         main_layout = BoxLayout(orientation='vertical', padding=8, spacing=10, size_hint_y=None)
         main_layout.bind(minimum_height=main_layout.setter('height'))
         
-        # Encabezado superior con botón para regresar a la carátula
         header_card = TarjetaAncha(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=12, spacing=6, size_hint_y=None)
         header_card.bind(minimum_height=header_card.setter('height'))
         
@@ -203,7 +234,6 @@ class PantallaCalculadora(Screen):
         header_card.add_widget(top_bar)
         main_layout.add_widget(header_card)
 
-        # Formulario de Ingreso (Ancho Completo)
         form_card = TarjetaAncha(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=12, spacing=10, size_hint_y=None)
         form_card.bind(minimum_height=form_card.setter('height'))
 
@@ -264,7 +294,6 @@ class PantallaCalculadora(Screen):
         form_card.add_widget(grid)
         main_layout.add_widget(form_card)
 
-        # Botón de Cálculo
         btn_calcular = Button(
             text="CALCULAR ACERO POR FLEXIÓN",
             font_size='16sp',
@@ -278,11 +307,9 @@ class PantallaCalculadora(Screen):
         btn_calcular.bind(on_press=self.ejecutar_diseno)
         main_layout.add_widget(btn_calcular)
 
-        # Bloque Gráfico Dinámico (Ancho Completo)
         self.viga_canvas = WidgetDeVigaAmplio(size_hint_y=None, height=200)
         main_layout.add_widget(self.viga_canvas)
 
-        # Tarjeta de Resultados
         self.res_card = TarjetaAncha(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=14, spacing=8, size_hint_y=None)
         self.res_card.bind(minimum_height=self.res_card.setter('height'))
 
@@ -366,7 +393,7 @@ class PantallaCalculadora(Screen):
             txt += f"• [color=CCD6F6]Parámetro K:[/color] [b]{k:.4f}[/b]   |   [color=CCD6F6]Parámetro w:[/color] [b]{w:.4f}[/b]\n"
             txt += f"• [color=CCD6F6]Acero Calculado:[/color] [b]{as_calculado:.2f} cm²[/b]\n"
             txt += f"• [color=CCD6F6]Acero Mín / Máx:[/color] [b]{as_min_norma:.2f} / {as_max:.2f} cm²[/b]\n\n"
-            txt += f"[size=15sp]🔥 [color=FFFFFF]ACERO FINAL (Tracción):[/color] [b][color=4EA8DE]{as_diseno:.2f} cm²[/color][/b][/size]\n"
+            txt += f"[size=15sp]🔥 [color=FFFFFF]ACERO FINAL (Tracción):[/color] [b][color=4EA8DE]{as_diseno:.2f} cm²[/b][/size]\n"
             txt += f"• [color=CCD6F6]Detalle Gráfico:[/color] [b]{num_inf} varillas inferiores (Tracción)[/b]\n\n"
             
             if as_calculado < as_min_norma:
@@ -387,6 +414,7 @@ class CalculadoraDisenoVigaApp(App):
         sm = ScreenManager()
         sm.add_widget(PantallaCaratula(name='caratula'))
         sm.add_widget(PantallaCalculadora(name='calculadora'))
+        sm.build = build if hasattr(self, 'build_custom') else sm.build
         return sm
 
 
