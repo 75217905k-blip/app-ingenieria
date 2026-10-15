@@ -9,8 +9,14 @@ package.name = calculadoraingenieria
 # (str) Package domain (needed for android packaging)
 package.domain = org.ingenieria
 
-# (list) Source files to include
+# (list) Source files to include (let it empty to include all files)
 source.include_exts = py,png,jpg,kv,atlas
+
+# (str) Source directory where the application lives
+source.dir = .
+
+# (str) Application versioning
+version = 0.1
 
 # (list) Application requirements
 requirements = python3,kivy
