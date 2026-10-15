@@ -27,6 +27,9 @@ orientation = portrait
 # (list) Permissions
 android.permissions = INTERNET
 
+# (list) The Android archs to build for (soluciona el error compilando solo para 64 bits)
+android.archs = arm64-v8a
+
 [buildozer]
 log_level = 2
 warn_on_root = 1
