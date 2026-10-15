@@ -19,7 +19,7 @@ source.dir = .
 version = 0.1
 
 # (list) Application requirements
-requirements = python3,kivy
+requirements = python3,kivy,sdl2,sdl2_image,sdl2_ttf,sdl2_mixer
 
 # (str) Supported orientations
 orientation = portrait
