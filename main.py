@@ -14,8 +14,20 @@ import math
 # Fondo general estilo panel tecnológico oscuro/elegante
 Window.clearcolor = (0.07, 0.09, 0.13, 1)
 
+# TABLA DE ACEROS OFICIAL (Barra, Pulgadas, Area cm2, Diametro cm)
+TABLA_ACEROS = [
+    ("#2", "1/4\"", 0.32, 0.64),
+    ("#3", "3/8\"", 0.71, 0.95),
+    ("#4", "1/2\"", 1.27, 1.27),
+    ("#5", "5/8\"", 1.98, 1.59),
+    ("#6", "3/4\"", 2.85, 1.91),
+    ("#8", "1\"", 5.07, 2.54),
+    ("#9", "1 1/8\"", 6.42, 2.86),
+    ("#10", "1 1/4\"", 7.94, 3.18)
+]
+
 class TarjetaDashboard(BoxLayout):
-    def __init__(self, bg_color=(0.12, 0.15, 0.22, 1), radius=[16], **kwargs):
+    def __init__(self, bg_color=(0.12, 0.15, 0.22, 1), radius=[14], **kwargs):
         super().__init__(**kwargs)
         self.bg_color = bg_color
         self.radius = radius
@@ -30,19 +42,21 @@ class TarjetaDashboard(BoxLayout):
 
 
 class WidgetDeVigaGigante(BoxLayout):
-    """Widget gráfico interactivo gigante y detallado para visualizar claramente la sección y el acero inferior."""
+    """Widget gráfico interactivo para visualizar la sección y diferenciar acero principal vs refuerzo."""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.b = 30.0
-        self.h = 75.0
-        self.num_barras_inf = 3  
+        self.h = 65.0
+        self.num_p = 2
+        self.num_r = 0
         self.estado_color = (0.1, 0.75, 0.4, 1)
         self.bind(pos=self.actualizar_dibujo, size=self.actualizar_dibujo)
 
-    def actualizar_parametros(self, b, h, num_inf, cumple):
+    def actualizar_parametros(self, b, h, num_p, num_r, cumple):
         self.b = max(15.0, float(b))
         self.h = max(20.0, float(h))
-        self.num_barras_inf = max(2, int(num_inf))
+        self.num_p = max(2, int(num_p))
+        self.num_r = max(0, int(num_r))
         self.estado_color = (0.1, 0.75, 0.4, 1) if cumple else (0.9, 0.3, 0.3, 1)
         self.actualizar_dibujo()
 
@@ -52,7 +66,6 @@ class WidgetDeVigaGigante(BoxLayout):
             Color(0.04, 0.06, 0.10, 1)
             Rectangle(pos=self.pos, size=self.size)
 
-            # Márgenes mínimos para que el rectángulo de concreto sea lo más grande posible
             padding = 8
             w_disp = self.width - (padding * 2)
             h_disp = self.height - (padding * 2)
@@ -69,7 +82,7 @@ class WidgetDeVigaGigante(BoxLayout):
 
             # 1. Contorno exterior del concreto
             Color(*self.estado_color)
-            Line(rectangle=(viga_x, viga_y, viga_w, viga_h), width=4.0)
+            Line(rectangle=(viga_x, viga_y, viga_w, viga_h), width=3.0)
 
             # 2. Estribo interior
             recubrimiento = max(4.0, 0.1 * viga_w)
@@ -80,22 +93,31 @@ class WidgetDeVigaGigante(BoxLayout):
 
             if estribo_w > 10 and estribo_h > 10:
                 Color(0.4, 0.6, 0.85, 1)
-                Line(rectangle=(estribo_x, estribo_y, estribo_w, estribo_h), width=2.0)
+                Line(rectangle=(estribo_x, estribo_y, estribo_w, estribo_h), width=1.5)
 
-            # 3. Puntos de acero inferior más finos y estilizados
-            radio = max(3.5, min(6.5, estribo_w / (self.num_barras_inf * 4.0)))
-            Color(0.95, 0.98, 1.0, 1)
-            
+            # 3. Puntos de acero diferenciados (Principal = Azul brillante, Refuerzo = Naranja/Ámbar)
+            total_b = self.num_p + self.num_r
+            total_b = max(2, total_b)
+            radio = max(3.5, min(6.5, estribo_w / (total_b * 4.0)))
             y_pos = estribo_y + 4
             
-            if self.num_barras_inf == 2:
-                xs_inf = [estribo_x + 5, estribo_x + estribo_w - (radio * 2) - 5]
+            if total_b == 2:
+                xs = [estribo_x + 5, estribo_x + estribo_w - (radio * 2) - 5]
+                tipos = ['P', 'P'][:total_b]
             else:
                 ancho_util = estribo_w - 10 - (radio * 2)
-                paso_inf = ancho_util / (self.num_barras_inf - 1)
-                xs_inf = [estribo_x + 5 + (i * paso_inf) for i in range(self.num_barras_inf)]
+                paso_inf = ancho_util / (total_b - 1)
+                xs = [estribo_x + 5 + (i * paso_inf) for i in range(total_b)]
+                tipos = ['P'] * self.num_p + ['R'] * self.num_r
+                while len(tipos) < total_b:
+                    tipos.append('R')
+                tipos = tipos[:total_b]
 
-            for x_i in xs_inf:
+            for x_i, tipo in zip(xs, tipos):
+                if tipo == 'P':
+                    Color(0.2, 0.65, 1.0, 1)  # Azul para Acero Longitudinal Principal
+                else:
+                    Color(1.0, 0.55, 0.1, 1)  # Naranja para Acero de Refuerzo Remanente
                 Ellipse(pos=(x_i, y_pos), size=(radio * 2, radio * 2))
 
 
@@ -107,7 +129,7 @@ class PantallaCaratula(Screen):
         tarjeta = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=24, spacing=15, radius=[20])
         
         lbl_titulo = Label(
-            text="[b]STRUCTURAL DASHBOARD[/b]\n[color=4EA8DE]DISEÑO DE VIGAS EN CONCRETO ARMADO[/color]",
+            text="[b]STRUCTURAL DASHBOARD[/b]\n[color=4EA8DE]DISEÑO DE VIGAS - VSR & DETALLADO[/color]",
             font_size='20sp',
             color=(1, 1, 1, 1),
             halign='center',
@@ -117,7 +139,7 @@ class PantallaCaratula(Screen):
         lbl_titulo.bind(size=lbl_titulo.setter('text_size'))
         
         lbl_sub = Label(
-            text="• Norma Técnica Peruana NTP E.060\n• Código ACI 318\n• Cálculo Exacto de Acero a Flexión",
+            text="• Selección Óptima de Acero (Principal + Refuerzo)\n• Criterio Automático de Estribos y Espaciamientos\n• Verificación Geométrica Rigurosa en Ancho 'b'",
             font_size='14sp',
             color=(0.7, 0.8, 0.9, 1),
             halign='center',
@@ -171,7 +193,7 @@ class PantallaCalculo(Screen):
         )
         btn_menu.bind(on_press=self.regresar_caratula)
         header_card.add_widget(btn_menu)
-        header_card.add_widget(Label(text="[b]PANEL DE CÁLCULO - VIGA[/b]", color=(1,1,1,1), markup=True, halign='center'))
+        header_card.add_widget(Label(text="[b]PANEL DE CÁLCULO - VIGA VSR[/b]", color=(1,1,1,1), markup=True, halign='center'))
         main_layout.add_widget(header_card)
 
         # Panel de Datos de Entrada
@@ -194,10 +216,11 @@ class PantallaCalculo(Screen):
 
         fields = [
             ("Base b (cm) [Min 25]:", "30"),
-            ("Altura h (cm):", "75"),
-            ("Concreto f'c (Kg/cm²):", "210"),
+            ("Altura h (cm):", "65"),
+            ("Concreto f'c (Kg/cm²):", "280"),
             ("Acero fy (Kg/cm²):", "4200"),
-            ("Momento Último Mu (Tn·m):", "30"),
+            ("Momento Mu (+) (Tn·m):", "37.54"),
+            ("Momento Mu (-) (Tn·m):", "25.14"),
             ("Factor de reducción ø:", "0.9")
         ]
 
@@ -236,7 +259,7 @@ class PantallaCalculo(Screen):
 
         # Botón de cálculo
         btn_calcular = Button(
-            text="▶ PROCESAR CÁLCULO DE ACERO",
+            text="▶ PROCESAR CÁLCULO Y DETALLADO",
             font_size='14sp',
             bold=True,
             background_normal='',
@@ -248,12 +271,12 @@ class PantallaCalculo(Screen):
         btn_calcular.bind(on_press=self.ejecutar_diseno)
         main_layout.add_widget(btn_calcular)
 
-        # Bloque Gráfico Gigante Maximizado (altura de 400)
-        self.viga_canvas = WidgetDeVigaGigante(size_hint_y=None, height=400)
+        # Bloque Gráfico Gigante
+        self.viga_canvas = WidgetDeVigaGigante(size_hint_y=None, height=340)
         main_layout.add_widget(self.viga_canvas)
 
-        # Tarjeta de Resultados Estilo Excel (Sin texto de cantidad de varillas)
-        self.res_card = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=14, spacing=8, size_hint_y=None, height=200)
+        # Tarjeta de Resultados Organizada (Cuadro Dinámico Agrandado)
+        self.res_card = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=14, spacing=8, size_hint_y=None, height=720)
         
         self.resultado_label = Label(
             text="[color=667788]Ingrese los datos y presione [PROCESAR CÁLCULO][/color]",
@@ -263,7 +286,7 @@ class PantallaCalculo(Screen):
             valign="top",
             markup=True,
             size_hint_y=None,
-            height=170
+            height=690
         )
         self.resultado_label.bind(size=self.resultado_label.setter('text_size'))
         self.res_card.add_widget(self.resultado_label)
@@ -275,72 +298,143 @@ class PantallaCalculo(Screen):
     def regresar_caratula(self, instance):
         self.manager.current = 'caratula'
 
+    def buscar_combinacion_optima(self, area_objetivo):
+        """Busca en la tabla de aceros la combinación óptima que supere el área objetivo de forma cercana."""
+        mejor_comb = None
+        min_diferencia = 999999.0
+        
+        for barra, pulg, area_unit, diam in TABLA_ACEROS:
+            for cant in range(2, 6):
+                area_total = cant * area_unit
+                if area_total >= area_objetivo:
+                    dif = area_total - area_objetivo
+                    if dif < min_diferencia:
+                        min_diferencia = dif
+                        mejor_comb = (cant, barra, pulg, area_total, diam)
+        
+        if not mejor_comb:
+            mejor_comb = (2, "#8", "1\"", 10.14, 2.54)
+        return mejor_comb
+
+    def calcular_flexion_cadena_excel(self, mu_tn, b, h, d, fc, fy, phi, is_norma_e060):
+        mu_kgcm = mu_tn * 100000.0
+        k = round(mu_kgcm / (phi * fc * b * (d ** 2)), 4)
+        
+        disc = 1.0 - 2.36 * k
+        if disc < 0:
+            return None, "Error: Mu excesivo"
+            
+        w = round((1.0 - math.sqrt(disc)) / 1.18, 4)
+        rho = round(w * fc / fy, 4)
+        as_calc = round(rho * b * d, 2)
+        
+        rho_min = round((0.71 * math.sqrt(fc)) / fy if is_norma_e060 else (14.0 / fy), 4)
+        as_min = round(rho_min * b * d, 2)
+        
+        beta1 = 0.85 if fc <= 280 else max(0.85 - (0.05 * (fc - 280) / 70), 0.65)
+        if is_norma_e060:
+            rho_max = round(0.32 * 0.85 * (fc / fy), 4)
+        else:
+            rho_max = round((0.85 * beta1 * fc / fy) * (0.003 / (0.003 + 0.004)), 4)
+            
+        as_max = round(rho_max * b * d, 2)
+        
+        as_continuo_req = round(as_calc / 3.0, 2)
+        as_diseno = round(max(as_continuo_req, as_min), 2)
+        
+        cumple_cond = rho_min < rho < rho_max
+        estado_txt = "CUMPLE" if cumple_cond else "NO CUMPLE"
+        
+        return k, w, rho, as_calc, rho_min, as_min, rho_max, as_max, as_continuo_req, as_diseno, estado_txt
+
     def ejecutar_diseno(self, instance):
         try:
             b = float(self.inputs["Base b (cm) [Min 25]:"].text)
             
             if b < 25.0:
                 self.resultado_label.text = f"[color=FF6B6B][b]❌ RESTRICCIÓN NORMATIVA (NTP E.060):[/b]\nLa base 'b' es {b} cm. El ancho mínimo es [b]25 cm[/b].[/color]"
-                self.viga_canvas.actualizar_parametros(b, float(self.inputs["Altura h (cm):"].text), 2, cumple=False)
+                self.viga_canvas.actualizar_parametros(b, float(self.inputs["Altura h (cm):"].text), 2, 0, cumple=False)
                 return
 
             h = float(self.inputs["Altura h (cm):"].text)
-            d = round(h - 6.0, 2)  # Peralte efectivo d = h - 6 con 2 decimales
+            d = round(h - 6.0, 2)
 
             fc = float(self.inputs["Concreto f'c (Kg/cm²):"].text)
             fy = float(self.inputs["Acero fy (Kg/cm²):"].text)
-            mu_tn = float(self.inputs["Momento Último Mu (Tn·m):"].text)
+            mu_pos_tn = float(self.inputs["Momento Mu (+) (Tn·m):"].text)
+            mu_neg_tn = float(self.inputs["Momento Mu (-) (Tn·m):"].text)
             phi = float(self.inputs["Factor de reducción ø:"].text)
             
-            # K, w, rho con 4 decimales
-            mu_kgcm = mu_tn * 100000.0
-            k = round(mu_kgcm / (phi * fc * b * (d ** 2)), 4)
-            
-            if (1.0 - 2.36 * k) < 0:
-                self.resultado_label.text = "[color=FF6B6B][b]❌ ERROR DE DISEÑO:[/b] Momento Mu excesivo para las dimensiones de la sección.[/color]"
-                self.viga_canvas.actualizar_parametros(b, h, 2, cumple=False)
+            is_e060 = "NTP E.060" in self.norma.text
+            nombre_norma = "NTP E.060 de Perú" if is_e060 else "ACI 318"
+
+            # Momento Positivo (+)
+            res_pos = self.calcular_flexion_cadena_excel(mu_pos_tn, b, h, d, fc, fy, phi, is_e060)
+            if res_pos[1] == "Error: Mu excesivo":
+                self.resultado_label.text = "[color=FF6B6B][b]❌ ERROR:[/b] Momento Mu (+) excesivo para la sección.[/color]"
                 return
-                
-            w = round((1.0 - math.sqrt(1.0 - 2.36 * k)) / 1.18, 4)
-            rho = round(w * (fc / fy), 4)
+            k_pos, w_pos, rho_pos, as_calc_pos, rho_min_val, as_min_val, rho_max_val, as_max_val, as_cont_pos, as_dis_pos, estado_pos = res_pos
+
+            # Detallado de Acero Positivo (Principal y Refuerzo)
+            cant_p, barra_p, pulg_p, area_p, diam_p = self.buscar_combinacion_optima(as_dis_pos)
             
-            # As con 2 decimales
-            as_calculado = round(rho * b * d, 2)
-            
-            # Acero Mínimo y Máximo
-            rho_min = round((0.7 / 100.0) * math.sqrt(fc) / fy if "NTP E.060" in self.norma.text else (14.0 / fy), 4)
-            as_min_norma = round(rho_min * b * d, 2)
-            
-            beta1 = 0.85 if fc <= 280 else max(0.85 - (0.05 * (fc - 280) / 70), 0.65)
-            
-            if "NTP E.060" in self.norma.text:
-                rho_max = round(0.32 * beta1 * (fc / fy), 4)
-                nombre_norma = "NTP E.060 de Perú"
+            # Acero remanente de refuerzo
+            as_remanente = max(0.0, as_calc_pos - area_p)
+            if as_remanente > 0:
+                cant_r, barra_r, pulg_r, area_r, diam_r = self.buscar_combinacion_optima(as_remanente)
             else:
-                rho_max = round((0.85 * beta1 * fc / fy) * (0.003 / (0.003 + 0.004)), 4)
-                nombre_norma = "ACI 318"
-                
-            as_max = round(rho_max * b * d, 2)
-            as_diseno = round(max(as_calculado, as_min_norma), 2)
+                cant_r, barra_r, pulg_r, area_r, diam_r = 0, "N/A", "N/A", 0.0, 0.0
+
+            # Criterio automático de estribos según diámetro longitudinal principal (> 1" -> 1/2", sino -> 3/8")
+            if diam_p > 2.54:
+                estribo_str = "1/2\" (1.27 cm)"
+                diam_estribo = 1.27
+            else:
+                estribo_str = "3/8\" (0.95 cm)"
+                diam_estribo = 0.95
+
+            # VERIFICACIÓN GEOMÉTRICA RIGUROSA EN ANCHO b:
+            recubrimiento = 4.0
+            num_p = cant_p
+            num_r = cant_r if as_remanente > 0 else 0
+            total_barras_capa = num_p + num_r
             
-            # Cálculo interno de barras exclusivamente para renderizar los puntos finos en el gráfico gigante
-            area_varilla = 1.99 
-            num_inf = math.ceil(as_diseno / area_varilla)
-            num_inf = max(2, num_inf)
+            suma_diametros_aceros = (num_p * diam_p) + (num_r * diam_r)
+            max_diam_barra = max(diam_p, diam_r) if num_r > 0 else diam_p
+            espaciamiento_libre = max(2.54, max_diam_barra)
+            num_espacios = max(0, total_barras_capa - 1)
+            suma_espaciamientos = num_espacios * espaciamiento_libre
 
-            cumple = True
-            if as_calculado > as_max:
-                cumple = False
+            ancho_necesario = (2.0 * recubrimiento) + (2.0 * diam_estribo) + suma_diametros_aceros + suma_espaciamientos
+            
+            ancho_cumple = ancho_necesario <= b
+            estado_ancho = "CUMPLE ESPACIO" if ancho_cumple else "EXCEDE ANCHO b (Ajustar sección)"
 
-            self.viga_canvas.actualizar_parametros(b, h, num_inf, cumple=cumple)
+            # Momento Negativo (-)
+            res_neg = self.calcular_flexion_cadena_excel(mu_neg_tn, b, h, d, fc, fy, phi, is_e060)
+            k_neg, w_neg, rho_neg, as_calc_neg, _, _, _, _, as_cont_neg, as_dis_neg, estado_neg = res_neg
 
-            # Reporte limpio, directo y estrictamente con los datos de tus planillas Excel
-            txt = f"[b][size=14sp][color=4EA8DE]RESULTADOS [{nombre_norma}][/color][/size][/b]\n"
-            txt += f"• d (Peralte efectivo) = [b]{d:.2f} cm[/b] (h - 6)\n"
-            txt += f"• K: [b]{k:.4f}[/b]  |  w: [b]{w:.4f}[/b]  |  ρ: [b]{rho:.4f}[/b]\n"
-            txt += f"• ρmin: [b]{rho_min:.4f}[/b]  |  As min: [b]{as_min_norma:.2f} cm²[/b]\n"
-            txt += f"• ρmax: [b]{rho_max:.4f}[/b]  |  As max: [b]{as_max:.2f} cm²[/b]\n"
-            txt += f"[size=14sp]🔥 [color=FFFFFF]ACERO FINAL (As):[/color] [b][color=4EA8DE]{as_diseno:.2f} cm²[/color][/b][/size]"
+            # Actualizar gráfico viga (Pasando cantidad principal y cantidad de refuerzo para colorearlos diferente)
+            cumple_general = (estado_pos == "CUMPLE") and (estado_neg == "CUMPLE") and ancho_cumple
+            self.viga_canvas.actualizar_parametros(b, h, num_p, num_r, cumple=cumple_general)
+
+            # Reporte Visual Organizado y Amplio
+            txt = f"[b][size=13sp][color=4EA8DE]DETALLADO Y DISEÑO DE ACERO [{nombre_norma}][/color][/size][/b]\n"
+            txt += f"[color=AACCFF]Peralte d = {d:.2f} cm  |  Ancho b = {b:.1f} cm[/color]\n"
+            txt += f"[color=FFD166]── LÍMITES NORMATIVOS ──[/color]\n"
+            txt += f"  • As min = [b]{as_min_val:.2f} cm²[/b]  |  As max = [b]{as_max_val:.2f} cm²[/b]\n\n"
+            
+            txt += f"[b][color=FFD166]── ACERO POSITIVO (+) ──[/color][/b]\n"
+            txt += f"  • As Total Req: [b]{as_calc_pos:.2f} cm²[/b] | As Base Req: [b]{as_dis_pos:.2f} cm²[/b]\n"
+            txt += f"  🔵 [b]Principal:[/b] [color=4EA8DE]{cant_p} Ø {pulg_p}[/color] = [b]{area_p:.2f} cm²[/b]\n"
+            if as_remanente > 0:
+                txt += f"  🟠 [b]Refuerzo:[/b] [color=FFA533]{cant_r} Ø {pulg_r}[/color] = [b]{area_r:.2f} cm²[/b] (Remanente: {as_remanente:.2f} cm²)\n"
+            txt += f"  • Estado Cuantía: [b][color={'06D6A0' if estado_pos=='CUMPLE' else 'FF6B6B'}]{estado_pos}[/color][/b]\n\n"
+
+            txt += f"[b][color=FFD166]── GEOMETRÍA Y ESPACIAMIENTO EN ANCHO b ──[/color][/b]\n"
+            txt += f"  • Estribo Seleccionado: [b]{estribo_str}[/b]\n"
+            txt += f"  • Ancho Requerido: [b]{ancho_necesario:.2f} cm[/b] (Disponible: {b} cm)\n"
+            txt += f"  • Verificación: [b][color={'06D6A0' if ancho_cumple else 'FF6B6B'}]{estado_ancho}[/color][/b]"
             
             self.resultado_label.text = txt
         except Exception as e:
@@ -349,7 +443,7 @@ class PantallaCalculo(Screen):
 
 class CalculadoraDisenoVigaApp(App):
     def build(self):
-        self.title = 'Structural Dashboard - Viga Flexión'
+        self.title = 'Structural Dashboard - Viga Flexión & Detallado'
         sm = ScreenManager()
         sm.add_widget(PantallaCaratula(name='caratula'))
         sm.add_widget(PantallaCalculo(name='calculo'))
