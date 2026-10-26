@@ -1,4 +1,5 @@
 import flet as ft
+import flet.canvas as cv
 import math
 
 # --- BASE DE DATOS DE ACERO COMERCIAL ---
@@ -30,7 +31,6 @@ def optimizar_distribucion_acero(As_requerido, As_min, b_cm):
         for n_cont in [2, 3]:
             area_cont = n_cont * info['area']
             if area_cont >= As_c_req:
-                As_baston = max(0.0, As_requerido - area_cont)
                 for nombre_baston, info_b in TABLA_ACEROS_CALCULO.items():
                     if info_b['d'] <= info['d']:
                         for n_baston in range(0, 5):
@@ -65,6 +65,16 @@ def main(page: ft.Page):
     page.scroll = ft.ScrollMode.AUTO
 
     # --- ENTRADAS DE DATOS (TABLA PRINCIPAL) ---
+    dd_norma = ft.Dropdown(
+        label="Norma de Diseño",
+        options=[
+            ft.dropdown.Option("NTP E.060 (Perú)"),
+            ft.dropdown.Option("ACI 318 (EE.UU.)")
+        ],
+        value="NTP E.060 (Perú)",
+        width=250
+    )
+    
     txt_b = ft.TextField(label="Base b (cm)", value="30", width=140)
     txt_h = ft.TextField(label="Peralte h (cm)", value="65", width=140)
     txt_rec = ft.TextField(label="Recubrimiento r (cm)", value="4", width=140)
@@ -86,30 +96,36 @@ def main(page: ft.Page):
     txt_mu_neg = ft.TextField(label="Mu (-) (Tn.m)", value="25.14", width=150)
     txt_phi = ft.TextField(label="Ø (Factor)", value="0.9", width=100)
 
-    # --- COMPONENTES GRÁFICOS (PANEL SUPERIOR) ---
-    lbl_dim_h = ft.Text("h = 65 cm", size=14, weight=ft.FontWeight.BOLD, color=ft.colors.AMBER_400)
-    lbl_dim_b = ft.Text("b = 30 cm", size=14, weight=ft.FontWeight.BOLD, color=ft.colors.AMBER_400)
-    
+    # --- CANVAS DINÁMICO PARA SECCIÓN TRANSVERSAL ---
+    canvas_seccion = cv.Canvas(
+        shapes=[],
+        width=260,
+        height=240,
+    )
+
+    lbl_dim_h = ft.Text("h = 65 cm", size=13, weight=ft.FontWeight.BOLD, color=ft.colors.AMBER_400)
+    lbl_dim_b = ft.Text("b = 30 cm", size=13, weight=ft.FontWeight.BOLD, color=ft.colors.AMBER_400)
+
     panel_grafico_superior = ft.Container(
         content=ft.Column([
+            ft.Text("SECCIÓN TRANSVERSAL Y ACERO", size=12, weight=ft.FontWeight.BOLD, color=ft.colors.AMBER_400),
             ft.Row([
-                ft.Column([ft.VerticalDivider(height=180, thickness=2, color=ft.colors.AMBER_400), lbl_dim_h], alignment=ft.MainAxisAlignment.CENTER),
+                lbl_dim_h,
                 ft.Container(
-                    content=ft.Text("SECCIÓN TRANSVERSAL (b x h)", size=12, color=ft.colors.WHITE54),
-                    width=280,
-                    height=200,
+                    content=canvas_seccion,
+                    width=260,
+                    height=240,
                     bgcolor=ft.colors.BLUE_950,
                     border=ft.border.all(2, ft.colors.BLUE_ACCENT),
                     border_radius=8,
                     alignment=ft.alignment.center,
                 ),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=15),
-            ft.Row([lbl_dim_b], alignment=ft.MainAxisAlignment.CENTER)
-        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-        padding=20,
+            lbl_dim_b
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+        padding=15,
         bgcolor=ft.colors.BLUE_GREY_900,
         border_radius=10,
-        expand=True,
         alignment=ft.alignment.center
     )
 
@@ -139,9 +155,55 @@ def main(page: ft.Page):
             txt_d.value = f"{d:.1f}"
             lbl_dim_h.value = f"h = {h} cm"
             lbl_dim_b.value = f"b = {b} cm"
+            
+            dibujar_seccion(b, h, None, None)
             page.update()
         except:
             pass
+
+    def dibujar_seccion(b, h, opt_pos, opt_neg):
+        shapes = []
+        max_dim = max(b, h) if max(b, h) > 0 else 65.0
+        escala = 170.0 / max_dim
+        
+        w_dibujo = b * escala
+        h_dibujo = h * escala
+        
+        start_x = 130 - (w_dibujo / 2)
+        start_y = 120 - (h_dibujo / 2)
+        
+        # Rectángulo de la sección de concreto
+        shapes.append(
+            cv.Rect(
+                x=start_x, y=start_y, width=w_dibujo, height=h_dibujo, border_radius=4,
+                paint=ft.Paint(style=ft.PaintingStyle.STROKE, stroke_width=2, color=ft.colors.BLUE_ACCENT)
+            )
+        )
+        
+        # Varillas Inferiores (+)
+        if opt_pos and opt_pos['n_total'] > 0:
+            n = opt_pos['n_total']
+            spacing = w_dibujo / (n + 1)
+            for i in range(n):
+                cx = start_x + spacing * (i + 1)
+                cy = start_y + h_dibujo - 15
+                shapes.append(
+                    cv.Circle(x=cx, y=cy, radius=5, paint=ft.Paint(style=ft.PaintingStyle.FILL, color=ft.colors.AMBER_400))
+                )
+                
+        # Varillas Superiores (-)
+        if opt_neg and opt_neg['n_total'] > 0:
+            n = opt_neg['n_total']
+            spacing = w_dibujo / (n + 1)
+            for i in range(n):
+                cx = start_x + spacing * (i + 1)
+                cy = start_y + 15
+                shapes.append(
+                    cv.Circle(x=cx, y=cy, radius=5, paint=ft.Paint(style=ft.PaintingStyle.FILL, color=ft.colors.GREEN_400))
+                )
+                
+        canvas_seccion.shapes = shapes
+        canvas_seccion.update()
 
     txt_b.on_change = actualizar_geometria
     txt_h.on_change = actualizar_geometria
@@ -158,6 +220,7 @@ def main(page: ft.Page):
             mu_neg = float(txt_mu_neg.value)
             phi = float(txt_phi.value)
             rec = float(txt_rec.value)
+            norma = dd_norma.value
 
             if b < 25:
                 txt_resultados.value = "⚠️ Error: El ancho b debe ser mínimo 25 cm por norma."
@@ -184,12 +247,15 @@ def main(page: ft.Page):
             As_gov_neg = max(As_neg if As_neg else As_min, As_min)
             opt_neg = optimizar_distribucion_acero(As_gov_neg, As_min, b)
 
+            # Actualizar dibujo dinámico
+            dibujar_seccion(b, h, opt_pos, opt_neg)
+
             reporte = f"""==================================================
-        MEMORIA DE CÁLCULO Y ARMADO VSR
+        MEMORIA DE CÁLCULO Y ARMADO [{norma}]
 ==================================================
-• Geometría: b = {b} cm | h = {h} cm | d = {d} cm | r = {rec} cm
-• Materiales: f'c = {fc} kg/cm² | fy = {fy} kg/cm²
-• Acero Mínimo (As_min) = {As_min:.2f} cm²
+- Geometría: b = {b} cm | h = {h} cm | d = {d} cm | r = {rec} cm
+- Materiales: f'c = {fc} kg/cm² | fy = {fy} kg/cm²
+- Acero Mínimo (As_min) = {As_min:.2f} cm²
 --------------------------------------------------
 1. ACERO POSITIVO (+) [Inferior]: Mu = {mu_pos} Tn.m
    - Requerido: {As_pos:.2f} cm² | Gobernaje: {As_gov_pos:.2f} cm²
@@ -243,8 +309,12 @@ def main(page: ft.Page):
         color=ft.colors.WHITE
     )
 
+    # Inicializar dimensiones y dibujo al arrancar
+    actualizar_geometria(None)
+
     page.add(
         ft.Text("Módulo Profesional: Diseño de Vigas y Esquema Dinámico", size=18, weight=ft.FontWeight.BOLD),
+        dd_norma,
         ft.Divider(),
         ft.Row([
             ft.Container(
@@ -292,3 +362,5 @@ def main(page: ft.Page):
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.START)
     )
 
+# NOTA DE SEGURIDAD MÓVIL: NO se incluye ninguna línea ft.app() al final 
+# para garantizar que la app inicie de forma limpia y estable en Android.
