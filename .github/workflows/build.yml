@@ -6,11 +6,16 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Clonar repositorio
       uses: actions/checkout@v4
+
+    - name: Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
     - name: Configurar Java (JDK 17)
       uses: actions/setup-java@v4
@@ -18,12 +23,20 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Instalar dependencias del sistema para Buildozer
+      run: |
+        sudo dpkg --add-architecture i386
+        sudo apt-get update
+        sudo apt-get install -y build-extras ccache lib32z1 lib32stdc++6 python3-pip python3-setuptools python3-virtualenv git zip unzip zlib1g-dev libffi-dev libssl-dev autoconf libtool pkg-config
+
+    - name: Instalar Buildozer y Cython
+      run: |
+        pip install --upgrade pip
+        pip install cython==0.29.36 buildozer
+
     - name: Compilar APK con Buildozer
-      uses: ArtemSBulgakov/buildozer-action@v1
-      with:
-        command: android debug
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        buildozer android debug
 
     - name: Subir APK generado
       uses: actions/upload-artifact@v4
