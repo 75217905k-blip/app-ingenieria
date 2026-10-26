@@ -12,8 +12,13 @@ package.domain = org.ingenieria
 # (list) Source files to include (let it empty to include all the files)
 source.include_exts = py,png,jpg,kv,atlas
 
+# (list) Source files to include (let it empty to include all the files)
+source.dir = .
+
+# (str) Application versioning
+version = 0.1
+
 # (list) Application requirements
-# ¡IMPORTANTE! Aquí agregamos kivymd y pillow para los gráficos y tarjetas
 requirements = python3,kivy,kivymd,pillow,certifi
 
 # (list) Permissions
