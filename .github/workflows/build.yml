@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
     - name: Clonar repositorio
@@ -23,11 +23,24 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Instalar dependencias del sistema para Buildozer
+    - name: Instalar dependencias del sistema
       run: |
-        sudo dpkg --add-architecture i386
         sudo apt-get update
-        sudo apt-get install -y build-extras ccache lib32z1 lib32stdc++6 python3-pip python3-setuptools python3-virtualenv git zip unzip zlib1g-dev libffi-dev libssl-dev autoconf libtool pkg-config
+        sudo apt-get install -y \
+          build-essential \
+          git \
+          python3-dev \
+          libffi-dev \
+          libssl-dev \
+          zlib1g-dev \
+          libncurses5-dev \
+          libsqlite3-dev \
+          libbz2-dev \
+          liblzma-dev \
+          tk-dev \
+          curl \
+          unzip \
+          zip
 
     - name: Instalar Buildozer y Cython
       run: |
