@@ -1,47 +1,32 @@
-name: Compilar APK Android
+name: Compilar APK Flet
 
 on:
   push:
-    branches: [ "principal", "main", "master" ]
-  workflow_dispatch:
+    branches: [ principal, main ]
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-
+    runs-on: ubuntu-latest
     steps:
-    - name: Obtener código del repositorio
-      uses: actions/checkout@v4
+      - name: 📥 Clonar repositorio
+        uses: actions/checkout@v4
 
-    - name: Configurar Java 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: 🐍 Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Configurar Python 3.10
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: 📦 Instalar dependencias y Flet
+        run: |
+          python -m pip install --upgrade pip
+          pip install flet
 
-    - name: Instalar dependencias del sistema
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev libgdbm-dev libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev tk-dev libffi-dev libssl-dev build-essential libltdl-dev ccache
+      - name: 📱 Compilar APK con Flet
+        run: |
+          flet build apk
 
-    - name: Instalar Buildozer y Cython
-      run: |
-        pip install --upgrade pip
-        pip install "cython<3.0.0" buildozer
-
-    - name: Aceptar licencias de Android SDK y Compilar APK
-      run: |
-        mkdir -p ~/.android
-        touch ~/.android/repositories.cfg
-        yes | buildozer android debug
-
-    - name: Guardar APK como artefacto
-      uses: actions/upload-artifact@v4
-      with:
-        name: MiApp-Android-APK
-        path: bin/*.apk
+      - name: 📤 Subir APK generado
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/apk/*.apk
