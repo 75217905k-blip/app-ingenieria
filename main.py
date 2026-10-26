@@ -1,20 +1,9 @@
-from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.label import Label
-from kivy.uix.textinput import TextInput
-from kivy.uix.button import Button
-from kivy.uix.spinner import Spinner
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.core.window import Window
-from kivy.graphics import Color, Rectangle, Line, Ellipse, RoundedRectangle
+import flet as ft
 import math
 
-# Fondo general estilo panel tecnológico oscuro/elegante
-Window.clearcolor = (0.07, 0.09, 0.13, 1)
-
-# TABLA DE ACEROS OFICIAL (Barra, Pulgadas, Area cm2, Diametro cm)
+# -----------------------------------------------------------------------------
+# TABLA OFICIAL DE ACEROS LONGITUDINALES Y ESTRIBOS
+# -----------------------------------------------------------------------------
 TABLA_ACEROS = [
     ("#2", "1/4\"", 0.32, 0.64),
     ("#3", "3/8\"", 0.71, 0.95),
@@ -26,509 +15,388 @@ TABLA_ACEROS = [
     ("#10", "1 1/4\"", 7.94, 3.18)
 ]
 
-class TarjetaDashboard(BoxLayout):
-    def __init__(self, bg_color=(0.12, 0.15, 0.22, 1), radius=[14], **kwargs):
-        super().__init__(**kwargs)
-        self.bg_color = bg_color
-        self.radius = radius
-        with self.canvas.before:
-            Color(*self.bg_color)
-            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=self.radius)
-        self.bind(pos=self.actualizar_rect, size=self.actualizar_rect)
+def main(page: ft.Page):
+    page.title = "Structural Dashboard - Concrete Beam Design"
+    page.theme_mode = ft.ThemeMode.DARK
+    page.bgcolor = "#0F172A"
+    page.padding = 10
+    page.scroll = ft.ScrollMode.AUTO
 
-    def actualizar_rect(self, instance, value):
-        self.rect.pos = instance.pos
-        self.rect.size = instance.size
+    # State variables
+    current_norm = ft.Ref[str]()
+    current_norm.current = "E.060"
 
+    # Navigation bar
+    nav_tabs = ft.Tabs(
+        selected_index=0,
+        animation_duration=300,
+        tabs=[
+            ft.Tab(text="1. Datos & Cuantías", icon=ft.icons.TUNE),
+            ft.Tab(text="2. Momento (+)", icon=ft.icons.ADD_CIRCLE_OUTLINE),
+            ft.Tab(text="3. Momento (-)", icon=ft.icons.REMOVE_CIRCLE_OUTLINE),
+        ],
+        expand=True,
+    )
 
-class WidgetDeVigaSimetrica(BoxLayout):
-    """Widget gráfico interactivo con distribución simétrica de aceros."""
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.b = 30.0
-        self.h = 65.0
-        self.num_p = 2
-        self.num_r = 0
-        self.estado_color = (0.1, 0.75, 0.4, 1)
-        self.bind(pos=self.actualizar_dibujo, size=self.actualizar_dibujo)
+    # -----------------------------------------------------------------------------
+    # HOJA 1: INPUT DATA & QUANTITIES
+    # -----------------------------------------------------------------------------
+    b_input = ft.TextField(label="Base b (cm) [Min 25]", value="30", width=180, border_radius=8, text_align=ft.TextAlign.CENTER)
+    h_input = ft.TextField(label="Altura h (cm)", value="65", width=180, border_radius=8, text_align=ft.TextAlign.CENTER)
+    fc_input = ft.TextField(label="Concreto f'c (kg/cm²)", value="210", width=180, border_radius=8, text_align=ft.TextAlign.CENTER)
+    fy_input = ft.TextField(label="Acero fy (kg/cm²)", value="4200", width=180, border_radius=8, text_align=ft.TextAlign.CENTER)
+    mu_pos_input = ft.TextField(label="Momento Mu (+) (Tn·m)", value="17.96", width=180, border_radius=8, text_align=ft.TextAlign.CENTER)
+    mu_neg_input = ft.TextField(label="Momento Mu (-) (Tn·m)", value="25.14", width=180, border_radius=8, text_align=ft.TextAlign.CENTER)
+    phi_input = ft.TextField(label="Factor ø (Flexión)", value="0.90", width=180, border_radius=8, text_align=ft.TextAlign.CENTER)
 
-    def actualizar_parametros(self, b, h, num_p, num_r, cumple):
-        self.b = max(15.0, float(b))
-        self.h = max(20.0, float(h))
-        self.num_p = max(2, int(num_p))
-        self.num_r = max(0, int(num_r))
-        self.estado_color = (0.1, 0.75, 0.4, 1) if cumple else (0.9, 0.3, 0.3, 1)
-        self.actualizar_dibujo()
+    modo_d_radio = ft.RadioGroup(
+        content=ft.Row([
+            ft.Radio(value="prediseno", label="Prediseño (d = h - 6 cm)"),
+            ft.Radio(value="detallado", label="Detallado Riguroso (1 Capa)"),
+        ], alignment=ft.MainAxisAlignment.CENTER),
+        value="prediseno"
+    )
 
-    def actualizar_dibujo(self, *args):
-        self.canvas.clear()
-        with self.canvas:
-            Color(0.04, 0.06, 0.10, 1)
-            Rectangle(pos=self.pos, size=self.size)
+    acero_long_dropdown = ft.Dropdown(
+        label="Ø Acero Tentativo Longitudinal",
+        value="3/4\"",
+        width=250,
+        options=[ft.dropdown.Option(item[1], f"{item[1]} (ø = {item[3]} cm)") for item in TABLA_ACEROS if item[3] >= 1.27],
+        visible=False
+    )
 
-            padding = 8
-            w_disp = self.width - (padding * 2)
-            h_disp = self.height - (padding * 2)
-            
-            if w_disp <= 0 or h_disp <= 0:
+    e060_sismo_check = ft.Checkbox(label="Aplicar ρmax sísmico (0.50 ρb)", value=False, visible=True)
+
+    lbl_d_val = ft.Text("59.00 cm", size=18, weight=ft.FontWeight.BOLD, color="#38BDF8")
+    lbl_estribo_detected = ft.Text("Estribo autoseleccionado: 3/8\" (0.95 cm)", size=12, color="#94A3B8")
+
+    lbl_status_h1 = ft.Text("", size=14, weight=ft.FontWeight.BOLD)
+    card_results_h1 = ft.Column(spacing=8)
+
+    def on_modo_d_change(e):
+        acero_long_dropdown.visible = (modo_d_radio.value == "detallado")
+        page.update()
+
+    modo_d_radio.on_change = on_modo_d_change
+
+    def calcular_hoja_1(e):
+        try:
+            b = float(b_input.value)
+            h = float(h_input.value)
+            fc = float(fc_input.value)
+            fy = float(fy_input.value)
+            mu_pos = float(mu_pos_input.value)
+            mu_neg = float(mu_neg_input.value)
+            phi = float(phi_input.value)
+
+            # Validation constraint
+            if b < 25.0:
+                lbl_status_h1.value = "❌ ERROR: El ancho 'b' debe ser como mínimo 25.00 cm según norma."
+                lbl_status_h1.color = "#EF4444"
+                card_results_h1.controls.clear()
+                page.update()
                 return
 
-            escala = min(w_disp / self.b, h_disp / self.h)
-            viga_w = self.b * escala
-            viga_h = self.h * escala
-            
-            viga_x = self.x + (self.width - viga_w) / 2
-            viga_y = self.y + (self.height - viga_h) / 2
+            lbl_status_h1.value = "✓ CÁLCULOS ACTUALIZADOS CORRECTAMENTE"
+            lbl_status_h1.color = "#06D6A0"
 
-            # 1. Contorno del concreto
-            Color(*self.estado_color)
-            Line(rectangle=(viga_x, viga_y, viga_w, viga_h), width=3.0)
-
-            # 2. Estribo interior
-            recubrimiento = max(4.0, 0.1 * viga_w)
-            estribo_x = viga_x + recubrimiento
-            estribo_y = viga_y + recubrimiento
-            estribo_w = viga_w - (recubrimiento * 2)
-            estribo_h = viga_h - (recubrimiento * 2)
-
-            if estribo_w > 10 and estribo_h > 10:
-                Color(0.4, 0.6, 0.85, 1)
-                Line(rectangle=(estribo_x, estribo_y, estribo_w, estribo_h), width=1.5)
-
-            # 3. Distribución Simétrica: Principales en extremos
-            total_b = self.num_p + self.num_r
-            total_b = max(2, total_b)
-            radio = max(3.5, min(6.5, estribo_w / (total_b * 4.0)))
-            y_pos = estribo_y + 4
-            
-            ancho_util = estribo_w - 10 - (radio * 2)
-            if total_b == 2:
-                xs = [estribo_x + 5, estribo_x + estribo_w - (radio * 2) - 5]
-                tipos = ['P', 'P']
+            # Calculation of 'd'
+            if modo_d_radio.value == "prediseno":
+                d = h - 6.0
+                estribo_str = "N/A (Prediseño)"
             else:
-                paso = ancho_util / (total_b - 1)
-                xs = [estribo_x + 5 + (i * paso) for i in range(total_b)]
-                tipos = ['R'] * total_b
-                tipos[0] = 'P'
-                tipos[-1] = 'P'
-                p_colocados = 2
-                idx = 1
-                while p_colocados < self.num_p and idx < total_b - 1:
-                    tipos[idx] = 'P'
-                    tipos[-(idx+1)] = 'P'
-                    p_colocados += 2
-                    idx += 1
-
-            for x_i, tipo in zip(xs, tipos):
-                if tipo == 'P':
-                    Color(0.2, 0.65, 1.0, 1)  # Azul principal
+                rec = 4.0
+                phi_long_cm = 1.91
+                for b_name, p_str, area_val, diam_val in TABLA_ACEROS:
+                    if p_str == acero_long_dropdown.value:
+                        phi_long_cm = diam_val
+                        break
+                
+                if phi_long_cm >= 2.54:
+                    diam_estribo = 1.27
+                    estribo_str = "1/2\" (1.27 cm)"
                 else:
-                    Color(1.0, 0.55, 0.1, 1)  # Naranja refuerzo
-                Ellipse(pos=(x_i, y_pos), size=(radio * 2, radio * 2))
+                    diam_estribo = 0.95
+                    estribo_str = "3/8\" (0.95 cm)"
 
+                d = h - rec - diam_estribo - (phi_long_cm / 2.0)
+                lbl_estribo_detected.value = f"Estribo autoseleccionado: {estribo_str}"
 
-class PantallaCaratula(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        layout = BoxLayout(orientation='vertical', padding=24, spacing=20)
-        
-        tarjeta = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=24, spacing=15, radius=[20])
-        
-        lbl_titulo = Label(
-            text="[b]STRUCTURAL DASHBOARD[/b]\n[color=4EA8DE]DISEÑO DE VIGAS - VSR & DETALLADO[/color]",
-            font_size='20sp',
-            color=(1, 1, 1, 1),
-            halign='center',
-            valign='middle',
-            markup=True
-        )
-        lbl_titulo.bind(size=lbl_titulo.setter('text_size'))
-        
-        lbl_sub = Label(
-            text="• Hoja 1: Datos, Coeficientes y Cuantías (Mín / Máx)\n• Hoja 2: Diseño por Momento Positivo (+)\n• Hoja 3: Diseño por Momento Negativo (-)",
-            font_size='14sp',
-            color=(0.7, 0.8, 0.9, 1),
-            halign='center',
-            valign='middle'
-        )
-        lbl_sub.bind(size=lbl_sub.setter('text_size'))
+            lbl_d_val.value = f"{d:.2f} cm"
 
-        tarjeta.add_widget(lbl_titulo)
-        tarjeta.add_widget(lbl_sub)
-        
-        btn_entrar = Button(
-            text="INICIAR SISTEMA DE CÁLCULO",
-            font_size='16sp',
-            bold=True,
-            background_normal='',
-            background_color=(0.1, 0.65, 0.4, 1),
-            color=(1, 1, 1, 1),
-            size_hint_y=None,
-            height=55
-        )
-        btn_entrar.bind(on_press=self.ir_a_hoja1)
+            # Beta 1 reduction logic
+            if fc <= 280.0:
+                beta1 = 0.85
+            else:
+                beta1 = max(0.85 - (0.05 * (fc - 280.0) / 70.0), 0.65)
 
-        layout.add_widget(BoxLayout(size_hint_y=0.15))
-        layout.add_widget(tarjeta)
-        layout.add_widget(btn_entrar)
-        layout.add_widget(BoxLayout(size_hint_y=0.15))
-        
-        self.add_widget(layout)
+            # Norm logic selection
+            if current_norm.current == "E.060":
+                rho_b = 0.85 * beta1 * (fc / fy) * (6000.0 / (fy + 6000.0))
+                rho_min = (0.70 * math.sqrt(fc)) / fy
+                factor_max = 0.50 if e060_sismo_check.value else 0.75
+                rho_max = factor_max * rho_b
+            else:
+                rho_min = max((0.80 * math.sqrt(fc)) / fy, 14.0 / fy)
+                rho_max = 0.32 * beta1 * (fc / fy)
 
-    def ir_a_hoja1(self, instance):
-        self.manager.current = 'hoja1'
+            as_min = rho_min * b * d
+            as_max = rho_max * b * d
 
+            # Pos & Neg Moments
+            k_p = (mu_pos * 100000.0) / (phi * fc * b * (d ** 2))
+            w_p = (1.0 - math.sqrt(max(0.0, 1.0 - 2.36 * k_p))) / 1.18
+            rho_p = w_p * fc / fy
+            as_p = rho_p * b * d
 
-class BaseHojaScreen(Screen):
-    """Clase base para mantener la navegación superior."""
-    def __init__(self, titulo_hoja, **kwargs):
-        super().__init__(**kwargs)
-        self.root_layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        
-        nav_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=45, spacing=5)
-        
-        btn_h1 = Button(text="1. Coef. y Cuantías", background_color=(0.2, 0.3, 0.5, 1), background_normal='', bold=True, font_size='12sp')
-        btn_h2 = Button(text="2. Momento (+)", background_color=(0.2, 0.3, 0.5, 1), background_normal='', bold=True, font_size='12sp')
-        btn_h3 = Button(text="3. Momento (-)", background_color=(0.3, 0.5, 0.3, 1), background_normal='', bold=True, font_size='12sp')
-        
-        btn_h1.bind(on_press=lambda x: setattr(self.manager, 'current', 'hoja1'))
-        btn_h2.bind(on_press=lambda x: setattr(self.manager, 'current', 'hoja2'))
-        btn_h3.bind(on_press=lambda x: setattr(self.manager, 'current', 'hoja3'))
-        
-        nav_layout.add_widget(btn_h1)
-        nav_layout.add_widget(btn_h2)
-        nav_layout.add_widget(btn_h3)
-        
-        self.root_layout.add_widget(nav_layout)
+            k_n = (mu_neg * 100000.0) / (phi * fc * b * (d ** 2))
+            w_n = (1.0 - math.sqrt(max(0.0, 1.0 - 2.36 * k_n))) / 1.18
+            rho_n = w_n * fc / fy
+            as_n = rho_n * b * d
 
+            # VSR vs VDR check
+            state_p = "VSR (Viga Simplemente Reforzada)" if rho_min <= rho_p <= rho_max else "VDR (Viga Doblemente Reforzada)"
+            state_n = "VSR (Viga Simplemente Reforzada)" if rho_min <= rho_n <= rho_max else "VDR (Viga Doblemente Reforzada)"
 
-class Hoja1DatosCoeficientes(BaseHojaScreen):
-    """Hoja 1: Datos, Coeficientes y Cuantías Mínimas/Máximas."""
-    def __init__(self, **kwargs):
-        super().__init__("Hoja 1", **kwargs)
-        
-        scroll = ScrollView(size_hint=(1, 1), do_scroll_x=False)
-        content = BoxLayout(orientation='vertical', padding=10, spacing=10, size_hint_y=None)
-        content.bind(minimum_height=content.setter('height'))
+            card_results_h1.controls = [
+                ft.Divider(),
+                ft.Text("MÁXIMOS Y MÍNIMOS DE DISEÑO", size=16, weight=ft.FontWeight.BOLD, color="#38BDF8"),
+                ft.Row([
+                    ft.Text(f"• β1 (Whitney): {beta1:.4f}"),
+                    ft.Text(f"• ρmin: {rho_min:.4f}  ──>  As min: {as_min:.2f} cm²", weight="bold", color="#38BDF8"),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                ft.Row([
+                    ft.Text(f"• Factor ρmax: {('ACI 0.32' if current_norm.current=='ACI 318' else ('0.50 Sís' if e060_sismo_check.value else '0.75 Standard'))}"),
+                    ft.Text(f"• ρmax: {rho_max:.4f}  ──>  As max: {as_max:.2f} cm²", weight="bold", color="#38BDF8"),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                ft.Divider(),
+                ft.Text("VALIDACIÓN POR MOMENTO POSITIVO (+)", size=14, weight=ft.FontWeight.BOLD),
+                ft.Row([
+                    ft.Text(f"ρ calc: {rho_p:.4f} | As calc: {as_p:.2f} cm²"),
+                    ft.Container(
+                        content=ft.Text(state_p, weight="bold", color="#FFFFFF", size=12),
+                        bgcolor="#06D6A0" if "VSR" in state_p else "#EF4444",
+                        padding=6, border_radius=6
+                    )
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                ft.Divider(),
+                ft.Text("VALIDACIÓN POR MOMENTO NEGATIVO (-)", size=14, weight=ft.FontWeight.BOLD),
+                ft.Row([
+                    ft.Text(f"ρ calc: {rho_n:.4f} | As calc: {as_n:.2f} cm²"),
+                    ft.Container(
+                        content=ft.Text(state_n, weight="bold", color="#FFFFFF", size=12),
+                        bgcolor="#06D6A0" if "VSR" in state_n else "#EF4444",
+                        padding=6, border_radius=6
+                    )
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ]
 
-        header = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='horizontal', padding=10, size_hint_y=None, height=45)
-        header.add_widget(Label(text="[b]HOJA 1: DATOS, COEFICIENTES Y CUANTÍAS[/b]", color=(1,1,1,1), markup=True, halign='center'))
-        content.add_widget(header)
+            # Update Hoja 2 & 3
+            actualizar_hoja_2(b, h, d, fc, fy, mu_pos, phi, k_p, w_p, rho_p, as_p, state_p)
+            actualizar_hoja_3(b, h, d, fc, fy, mu_neg, phi, k_n, w_n, rho_n, as_n, state_n)
 
-        # Formulario de Entrada
-        form_card = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=12, spacing=8, size_hint_y=None)
-        form_card.bind(minimum_height=form_card.setter('height'))
+            page.update()
+        except ValueError:
+            lbl_status_h1.value = "❌ ERROR: Ingrese valores numéricos válidos en todos los campos."
+            lbl_status_h1.color = "#EF4444"
+            page.update()
 
-        form_card.add_widget(Label(text="Norma de Diseño:", font_size='13sp', bold=True, color=(0.8, 0.85, 0.9, 1), size_hint_y=None, height=20, halign="left"))
-        self.norma = Spinner(text='NTP E.060 de Perú', values=('NTP E.060 de Perú', 'Código ACI 318'), size_hint_y=None, height=40, font_size='13sp', background_color=(0.15, 0.3, 0.5, 1))
-        form_card.add_widget(self.norma)
+    # -----------------------------------------------------------------------------
+    # DYNAMIC BEAM CANVAS DRAWING FUNCTION
+    # -----------------------------------------------------------------------------
+    def crear_canvas_viga(b, h, d, estado_text):
+        scale = min(180.0 / b, 220.0 / h)
+        w_px = b * scale
+        h_px = h * scale
+        x_center = (280.0 - w_px) / 2.0
+        y_center = (250.0 - h_px) / 2.0
 
-        grid = GridLayout(cols=2, spacing=8, size_hint_y=None)
-        grid.bind(minimum_height=grid.setter('height'))
+        is_ok = "VSR" in estado_text
+        border_color = "#06D6A0" if is_ok else "#EF4444"
 
-        fields = [
-            ("Base b (cm) [Min 25]:", "25"),
-            ("Altura h (cm):", "65"),
-            ("Concreto f'c (Kg/cm²):", "280"),
-            ("Acero fy (Kg/cm²):", "4200"),
-            ("Momento Mu (+) (Tn·m):", "37.54"),
-            ("Momento Mu (-) (Tn·m):", "17.54"),
-            ("Factor de reducción ø:", "0.9")
+        # Canvas Elements
+        elements = [
+            # Concrete Outline
+            ft.canvas.Rect(x=x_center, y=y_center, width=w_px, height=h_px, paint=ft.Paint(color=border_color, style=ft.PaintingStyle.STROKE, stroke_width=3)),
+            # Stirrup
+            ft.canvas.Rect(x=x_center + 10, y=y_center + 10, width=w_px - 20, height=h_px - 20, paint=ft.Paint(color="#38BDF8", style=ft.PaintingStyle.STROKE, stroke_width=1.5)),
+            # Reinforcement Bars (Tension area - bottom)
+            ft.canvas.Circle(x=x_center + 18, y=y_center + h_px - 18, radius=6, paint=ft.Paint(color="#0284C7", style=ft.PaintingStyle.FILL)),
+            ft.canvas.Circle(x=x_center + w_px - 18, y=y_center + h_px - 18, radius=6, paint=ft.Paint(color="#0284C7", style=ft.PaintingStyle.FILL)),
+            # Dimensions Labels
+            ft.canvas.Text(x=x_center + (w_px/2) - 15, y=y_center + h_px + 5, text=f"b = {b:.0f} cm", style=ft.TextStyle(color="#94A3B8", size=11, weight=ft.FontWeight.BOLD)),
+            ft.canvas.Text(x=x_center - 55, y=y_center + (h_px/2) - 5, text=f"h = {h:.0f} cm", style=ft.TextStyle(color="#94A3B8", size=11, weight=ft.FontWeight.BOLD)),
+            ft.canvas.Text(x=x_center + w_px + 8, y=y_center + (h_px/2) - 5, text=f"d = {d:.1f} cm", style=ft.TextStyle(color="#38BDF8", size=11, weight=ft.FontWeight.BOLD)),
         ]
 
-        self.inputs = {}
-        for label_text, default_val in fields:
-            lbl = Label(text=label_text, font_size='13sp', bold=True, color=(0.8, 0.85, 0.9, 1), halign='left', valign='middle', size_hint_y=None, height=38)
-            lbl.bind(size=lbl.setter('text_size'))
-            inp = TextInput(text=default_val, multiline=False, input_filter='float', font_size='15sp', halign='center', background_color=(0.18, 0.22, 0.3, 1), foreground_color=(1, 1, 1, 1), size_hint_y=None, height=38, padding=[4, 6, 4, 6])
-            grid.add_widget(lbl)
-            grid.add_widget(inp)
-            self.inputs[label_text] = inp
+        return ft.Container(
+            content=ft.cv.Canvas(elements, width=300, height=270),
+            alignment=ft.alignment.center,
+            bgcolor="#1E293B",
+            border_radius=10,
+            padding=10
+        )
 
-        form_card.add_widget(grid)
-        content.add_widget(form_card)
+    # -----------------------------------------------------------------------------
+    # HOJA 2: MOMENTO POSITIVO (+)
+    # -----------------------------------------------------------------------------
+    container_h2 = ft.Column(spacing=10)
 
-        btn_calc = Button(text="▶ CALCULAR COEFICIENTES Y CUANTÍAS", font_size='14sp', bold=True, background_normal='', background_color=(0.1, 0.65, 0.4, 1), color=(1, 1, 1, 1), size_hint_y=None, height=48)
-        btn_calc.bind(on_press=self.calcular_coeficientes)
-        content.add_widget(btn_calc)
-
-        self.res_card = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=14, spacing=8, size_hint_y=None, height=440)
-        self.resultado_label = Label(text="[color=667788]Ingrese los datos y presione calcular para ver coeficientes y cuantías.[/color]", font_size='13sp', color=(0.9, 0.9, 0.9, 1), halign="left", valign="top", markup=True, size_hint_y=None, height=410)
-        self.resultado_label.bind(size=self.resultado_label.setter('text_size'))
-        self.res_card.add_widget(self.resultado_label)
-        content.add_widget(self.res_card)
-
-        scroll.add_widget(content)
-        self.root_layout.add_widget(scroll)
-        self.add_widget(self.root_layout)
-
-    def calcular_coeficientes(self, instance):
-        try:
-            b = float(self.inputs["Base b (cm) [Min 25]:"].text)
-            h = float(self.inputs["Altura h (cm):"].text)
-            d = round(h - 6.0, 2)
-            fc = float(self.inputs["Concreto f'c (Kg/cm²):"].text)
-            fy = float(self.inputs["Acero fy (Kg/cm²):"].text)
-            mu_pos = float(self.inputs["Momento Mu (+) (Tn·m):"].text)
-            mu_neg = float(self.inputs["Momento Mu (-) (Tn·m):"].text)
-            phi = float(self.inputs["Factor de reducción ø:"].text)
-            is_e060 = "NTP E.060" in self.norma.text
-
-            # 1. Coeficientes Mu(+) y Mu(-)
-            k_p = round((mu_pos * 100000.0) / (phi * fc * b * (d ** 2)), 4)
-            w_p = round((1.0 - math.sqrt(max(0.0, 1.0 - 2.36 * k_p))) / 1.18, 4)
-            rho_p = round(w_p * fc / fy, 4)
-            as_p = round(rho_p * b * d, 2)
-
-            k_n = round((mu_neg * 100000.0) / (phi * fc * b * (d ** 2)), 4)
-            w_n = round((1.0 - math.sqrt(max(0.0, 1.0 - 2.36 * k_n))) / 1.18, 4)
-            rho_n = round(w_n * fc / fy, 4)
-            as_n = round(rho_n * b * d, 2)
-
-            # 2. Cuantías Límites y Áreas (Mínimo / Máximo) exactas a tus celdas de Excel
-            rho_min = round((0.71 * math.sqrt(fc)) / fy if is_e060 else (14.0 / fy), 4)[cite: 28]
-            as_min = round(rho_min * b * d, 2)[cite: 28]
-
-            beta1 = 0.85 if fc <= 280 else max(0.85 - (0.05 * (fc - 280) / 70), 0.65)
-            rho_max = round(0.32 * 0.85 * (fc / fy) if is_e060 else (0.85 * beta1 * fc / fy) * (0.003 / 0.007), 4)[cite: 28]
-            as_max = round(rho_max * b * d, 2)[cite: 28]
-
-            cumple_p = "CUMPLE" if rho_min < rho_p < rho_max else "NO CUMPLE"[cite: 28]
-            cumple_n = "CUMPLE" if rho_min < rho_n < rho_max else "NO CUMPLE"[cite: 28]
-
-            # Formato idéntico al cuadro de Excel de la figura
-            txt = f"[b][size=13sp][color=4EA8DE]CÁLCULO DEL ÁREA DEL ACERO Y COEFICIENTES[/color][/size][/b]\n"
-            txt += f"• Peralte efectivo d = [b]{d:.2f} cm[/b] (h - 6)\n"
-            txt += f"  [color=AACCFF]Mu(+) -> K: {k_p:.4f} | w: {w_p:.4f} | ρ: {rho_p:.4f} | As: {as_p:.2f} cm²[/color]\n"
-            txt += f"  [color=AACCFF]Mu(-) -> K: {k_n:.4f} | w: {w_n:.4f} | ρ: {rho_n:.4f} | As: {as_n:.2f} cm²[/color]\n\n"
-
-            txt += f"[b][color=FFD166]── CÁLCULO CUANTÍA (MÍNIMO / MÁXIMO) ──[/color][/b]\n"[cite: 28]
-            txt += f"  • [b]ρmin[/b]  = [b]{rho_min:.4f}[/b]\n"[cite: 28]
-            txt += f"  • [b]As min[/b] = [b][color=4EA8DE]{as_min:.2f} cm²[/color][/b]\n"[cite: 28]
-            txt += f"  • [b]ρmax[/b]  = [b]{rho_max:.4f}[/b]\n"[cite: 28]
-            txt += f"  • [b]As max[/b] = [b][color=4EA8DE]{as_max:.2f} cm²[/color][/b]\n\n"[cite: 28]
-
-            txt += f"[b][color=FFD166]── VALIDACIÓN DE CUANTÍAS ──[/color][/b]\n"
-            txt += f"  • [b]Mu(+):[/b] {rho_min:.4f} < [b]{rho_p:.4f}[/b] < {rho_max:.4f}  ->  [b][color={'06D6A0' if cumple_p=='CUMPLE' else 'FF6B6B'}]{cumple_p}[/color][/b]\n"[cite: 28]
-            txt += f"  • [b]Mu(-):[/b] {rho_min:.4f} < [b]{rho_n:.4f}[/b] < {rho_max:.4f}  ->  [b][color={'06D6A0' if cumple_n=='CUMPLE' else 'FF6B6B'}]{cumple_n}[/color][/b]"[cite: 28]
-
-            self.resultado_label.text = txt
-        except Exception as e:
-            self.resultado_label.text = f"[color=FF6B6B][b]❌ Error:[/b] {str(e)}[/color]"
-
-
-class Hoja2MomentoPositivo(BaseHojaScreen):
-    """Hoja 2: Detallado y Diseño de Acero para Momento Positivo (+)."""
-    def __init__(self, **kwargs):
-        super().__init__("Hoja 2", **kwargs)
+    def actualizar_hoja_2(b, h, d, fc, fy, mu, phi, k, w, rho, as_calc, state_str):
+        a_whitney = (as_calc * fy) / (0.85 * fc * b)
         
-        scroll = ScrollView(size_hint=(1, 1), do_scroll_x=False)
-        content = BoxLayout(orientation='vertical', padding=10, spacing=10, size_hint_y=None)
-        content.bind(minimum_height=content.setter('height'))
+        container_h2.controls = [
+            ft.Text("DISEÑO Y DETALLADO POR MOMENTO POSITIVO (+)", size=18, weight=ft.FontWeight.BOLD, color="#38BDF8"),
+            ft.Row([
+                ft.Column([
+                    ft.Text(f"• Momento Mu (+): {mu:.2f} Tn·m"),
+                    ft.Text(f"• Coeficiente K: {k:.4f}"),
+                    ft.Text(f"• Cuantía Mecánica w: {w:.4f}"),
+                    ft.Text(f"• Cuantía Requerida ρ: {rho:.4f}"),
+                    ft.Text(f"• ÁREA REQUERIDA As: {as_calc:.2f} cm²", size=16, weight="bold", color="#38BDF8"),
+                    ft.Text(f"• Bloque de Whitney (a): {a_whitney:.2f} cm", size=14, weight="bold", color="#F59E0B"),
+                    ft.SizedBox(height=10),
+                    ft.Container(
+                        content=ft.Text(state_str, weight="bold", color="#FFFFFF"),
+                        bgcolor="#06D6A0" if "VSR" in state_str else "#EF4444",
+                        padding=10, border_radius=8
+                    )
+                ], expand=True),
+                crear_canvas_viga(b, h, d, state_str)
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+        ]
 
-        header = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='horizontal', padding=10, size_hint_y=None, height=45)
-        header.add_widget(Label(text="[b]HOJA 2: DISEÑO Y DETALLADO - MOMENTO POSITIVO (+)[/b]", color=(1,1,1,1), markup=True, halign='center'))
-        content.add_widget(header)
+    # -----------------------------------------------------------------------------
+    # HOJA 3: MOMENTO NEGATIVO (-)
+    # -----------------------------------------------------------------------------
+    container_h3 = ft.Column(spacing=10)
 
-        btn_proc = Button(text="▶ PROCESAR DISEÑO MOMENTO (+)", font_size='14sp', bold=True, background_normal='', background_color=(0.1, 0.65, 0.4, 1), color=(1, 1, 1, 1), size_hint_y=None, height=48)
-        btn_proc.bind(on_press=self.procesar_positivo)
-        content.add_widget(btn_proc)
+    def actualizar_hoja_3(b, h, d, fc, fy, mu, phi, k, w, rho, as_calc, state_str):
+        a_whitney = (as_calc * fy) / (0.85 * fc * b)
 
-        self.viga_canvas = WidgetDeVigaSimetrica(size_hint_y=None, height=280)
-        content.add_widget(self.viga_canvas)
+        container_h3.controls = [
+            ft.Text("DISEÑO Y DETALLADO POR MOMENTO NEGATIVO (-)", size=18, weight=ft.FontWeight.BOLD, color="#38BDF8"),
+            ft.Row([
+                ft.Column([
+                    ft.Text(f"• Momento Mu (-): {mu:.2f} Tn·m"),
+                    ft.Text(f"• Coeficiente K: {k:.4f}"),
+                    ft.Text(f"• Cuantía Mecánica w: {w:.4f}"),
+                    ft.Text(f"• Cuantía Requerida ρ: {rho:.4f}"),
+                    ft.Text(f"• ÁREA REQUERIDA As: {as_calc:.2f} cm²", size=16, weight="bold", color="#38BDF8"),
+                    ft.Text(f"• Bloque de Whitney (a): {a_whitney:.2f} cm", size=14, weight="bold", color="#F59E0B"),
+                    ft.SizedBox(height=10),
+                    ft.Container(
+                        content=ft.Text(state_str, weight="bold", color="#FFFFFF"),
+                        bgcolor="#06D6A0" if "VSR" in state_str else "#EF4444",
+                        padding=10, border_radius=8
+                    )
+                ], expand=True),
+                crear_canvas_viga(b, h, d, state_str)
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+        ]
 
-        self.res_card = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=14, spacing=8, size_hint_y=None, height=380)
-        self.resultado_label = Label(text="[color=667788]Presione el botón para procesar el momento positivo.[/color]", font_size='13sp', color=(0.9, 0.9, 0.9, 1), halign="left", valign="top", markup=True, size_hint_y=None, height=350)
-        self.resultado_label.bind(size=self.resultado_label.setter('text_size'))
-        self.res_card.add_widget(self.resultado_label)
-        content.add_widget(self.res_card)
-
-        scroll.add_widget(content)
-        self.root_layout.add_widget(scroll)
-        self.add_widget(self.root_layout)
-
-    def buscar_combinacion(self, area_objetivo):
-        mejor = None
-        min_dif = 999999.0
-        for barra, pulg, unit, diam in TABLA_ACEROS:
-            for cant in range(2, 6):
-                total = cant * unit
-                if total >= area_objetivo:
-                    dif = total - area_objetivo
-                    if dif < min_dif:
-                        min_dif = dif
-                        mejor = (cant, barra, pulg, total, diam)
-        return mejor if mejor else (2, "#8", "1\"", 10.14, 2.54)
-
-    def procesar_positivo(self, instance):
-        app = App.get_running_app()
-        h1 = app.root.get_screen('hoja1')
-        try:
-            b = float(h1.inputs["Base b (cm) [Min 25]:"].text)
-            h = float(h1.inputs["Altura h (cm):"].text)
-            d = round(h - 6.0, 2)
-            fc = float(h1.inputs["Concreto f'c (Kg/cm²):"].text)
-            fy = float(h1.inputs["Acero fy (Kg/cm²):"].text)
-            mu = float(h1.inputs["Momento Mu (+) (Tn·m):"].text)
-            phi = float(h1.inputs["Factor de reducción ø:"].text)
-            is_e060 = "NTP E.060" in h1.norma.text
-
-            k = round((mu * 100000.0) / (phi * fc * b * (d ** 2)), 4)
-            w = round((1.0 - math.sqrt(max(0.0, 1.0 - 2.36 * k))) / 1.18, 4)
-            rho = round(w * fc / fy, 4)
-            as_calc = round(rho * b * d, 2)
-
-            rho_min = round((0.71 * math.sqrt(fc)) / fy if is_e060 else (14.0 / fy), 4)[cite: 28]
-            as_min = round(rho_min * b * d, 2)[cite: 28]
-            beta1 = 0.85 if fc <= 280 else max(0.85 - (0.05 * (fc - 280) / 70), 0.65)
-            rho_max = round(0.32 * 0.85 * (fc / fy) if is_e060 else (0.85 * beta1 * fc / fy) * (0.003 / 0.007), 4)[cite: 28]
-            as_max = round(rho_max * b * d, 2)[cite: 28]
-
-            as_base = round(max(as_calc / 3.0, as_min), 2)
-            cant_p, barra_p, pulg_p, area_p, diam_p = self.buscar_combinacion(as_base)
-
-            as_remanente = max(0.0, as_calc - area_p)
-            cant_r, barra_r, pulg_r, area_r, diam_r = (0, "N/A", "N/A", 0.0, 0.0) if as_remanente == 0 else self.buscar_combinacion(as_remanente)
-
-            diam_estribo = 1.27 if diam_p > 2.54 else 0.95
-            estribo_str = "1/2\" (1.27 cm)" if diam_p > 2.54 else "3/8\" (0.95 cm)"
-
-            tot_barras = cant_p + (cant_r if as_remanente > 0 else 0)
-            suma_d = (cant_p * diam_p) + ((cant_r if as_remanente > 0 else 0) * diam_r)
-            max_d = max(diam_p, diam_r) if as_remanente > 0 else diam_p
-            ancho_nec = (8.0) + (2.0 * diam_estribo) + suma_d + (max(0, tot_barras - 1) * max(2.54, max_d))
-            ancho_cumple = ancho_nec <= b
-
-            estado_cuant = "CUMPLE" if rho_min < rho < rho_max else "NO CUMPLE"[cite: 28]
-            estado_b = "CUMPLE ESPACIO" if ancho_cumple else "EXCEDE ANCHO b"
-
-            self.viga_canvas.actualizar_parametros(b, h, cant_p, cant_r if as_remanente > 0 else 0, cumple=(estado_cuant=="CUMPLE" and ancho_cumple))
-
-            txt = f"[b][size=12sp][color=4EA8DE]DISEÑO MOMENTO POSITIVO (+)[/color][/size][/b]\n"
-            txt += f"• As Total Req: [b]{as_calc:.2f} cm²[/b] | As Base: [b]{as_base:.2f} cm²[/b]\n"
-            txt += f"🔵 [b]Principal:[/b] [color=4EA8DE]{cant_p} Ø {pulg_p}[/color] ([b]{area_p:.2f} cm²[/b])\n"
-            if as_remanente > 0:
-                txt += f"🟠 [b]Refuerzo:[/b] [color=FFA533]{cant_r} Ø {pulg_r}[/color] ([b]{area_r:.2f} cm²[/b])\n"
-            txt += f"• Cuantía: [b][color={'06D6A0' if estado_cuant=='CUMPLE' else 'FF6B6B'}]{estado_cuant}[/color][/b]\n"[cite: 28]
-            txt += f"• Estribo: [b]{estribo_str}[/b] | Ancho Nec: [b]{ancho_nec:.2f} cm[/b]\n"
-            txt += f"• Verif b: [b][color={'06D6A0' if ancho_cumple else 'FF6B6B'}]{estado_b}[/color][/b]"
-            
-            self.resultado_label.text = txt
-        except Exception as e:
-            self.resultado_label.text = f"[color=FF6B6B][b]❌ Error:[/b] {str(e)}[/color]"
-
-
-class Hoja3MomentoNegativo(BaseHojaScreen):
-    """Hoja 3: Detallado y Diseño de Acero para Momento Negativo (-)."""
-    def __init__(self, **kwargs):
-        super().__init__("Hoja 3", **kwargs)
+    # -----------------------------------------------------------------------------
+    # COVER / CARÁTULA SCREEN & NORM SELECTION
+    # -----------------------------------------------------------------------------
+    def select_norm_and_start(norm_code):
+        current_norm.current = norm_code
+        e060_sismo_check.visible = (norm_code == "E.060")
+        page.controls.clear()
         
-        scroll = ScrollView(size_hint=(1, 1), do_scroll_x=False)
-        content = BoxLayout(orientation='vertical', padding=10, spacing=10, size_hint_y=None)
-        content.bind(minimum_height=content.setter('height'))
+        # Build layout with tabs
+        page.add(
+            ft.Column([
+                ft.Row([
+                    ft.Text("ConcreteDesign Pro", size=22, weight="bold", color="#FFFFFF"),
+                    ft.Container(
+                        content=ft.Text(f"NORMA ACTIVADA: {norm_code}", weight="bold", color="#FFFFFF", size=12),
+                        bgcolor="#0284C7", padding=8, border_radius=6
+                    )
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                nav_tabs,
+                ft.Container(id="tab_content", content=view_hoja1(), expand=True)
+            ], expand=True)
+        )
+        calcular_hoja_1(None)
+        page.update()
 
-        header = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='horizontal', padding=10, size_hint_y=None, height=45)
-        header.add_widget(Label(text="[b]HOJA 3: DISEÑO Y DETALLADO - MOMENTO NEGATIVO (-)[/b]", color=(1,1,1,1), markup=True, halign='center'))
-        content.add_widget(header)
+    def on_tab_change(e):
+        idx = nav_tabs.selected_index
+        tab_container = page.controls[0].controls[2]
+        if idx == 0:
+            tab_container.content = view_hoja1()
+        elif idx == 1:
+            tab_container.content = view_hoja2()
+        elif idx == 2:
+            tab_container.content = view_hoja3()
+        page.update()
 
-        btn_proc = Button(text="▶ PROCESAR DISEÑO MOMENTO (-)", font_size='14sp', bold=True, background_normal='', background_color=(0.1, 0.65, 0.4, 1), color=(1, 1, 1, 1), size_hint_y=None, height=48)
-        btn_proc.bind(on_press=self.procesar_negativo)
-        content.add_widget(btn_proc)
+    nav_tabs.on_change = on_tab_change
 
-        self.viga_canvas = WidgetDeVigaSimetrica(size_hint_y=None, height=280)
-        content.add_widget(self.viga_canvas)
+    def view_hoja1():
+        return ft.Container(
+            content=ft.Column([
+                ft.Text("1. PARAMETROS Y CONFIGURACIÓN DE SECCIÓN", size=16, weight="bold", color="#38BDF8"),
+                modo_d_radio,
+                acero_long_dropdown,
+                e060_sismo_check,
+                ft.Divider(),
+                ft.Row([b_input, h_input, fc_input, fy_input], alignment=ft.MainAxisAlignment.SPACE_EVENLY, wrap=True),
+                ft.Row([mu_pos_input, mu_neg_input, phi_input], alignment=ft.MainAxisAlignment.SPACE_EVENLY, wrap=True),
+                ft.Row([
+                    ft.Text("Peralte Efectivo Calculado (d):", weight="bold"),
+                    lbl_d_val,
+                ], alignment=ft.MainAxisAlignment.CENTER),
+                lbl_estribo_detected,
+                ft.SizedBox(height=10),
+                ft.ElevatedButton(
+                    "EJECUTAR CÁLCULOS Y ACTUALIZAR",
+                    icon=ft.icons.CALCULATE,
+                    on_click=calcular_hoja_1,
+                    style=ft.ButtonStyle(bgcolor="#0284C7", color="#FFFFFF", width=400, padding=18)
+                ),
+                lbl_status_h1,
+                card_results_h1
+            ], spacing=10),
+            bgcolor="#1E293B", padding=20, border_radius=12
+        )
 
-        self.res_card = TarjetaDashboard(bg_color=(0.1, 0.14, 0.22, 1), orientation='vertical', padding=14, spacing=8, size_hint_y=None, height=380)
-        self.resultado_label = Label(text="[color=667788]Presione el botón para procesar el momento negativo.[/color]", font_size='13sp', color=(0.9, 0.9, 0.9, 1), halign="left", valign="top", markup=True, size_hint_y=None, height=350)
-        self.resultado_label.bind(size=self.resultado_label.setter('text_size'))
-        self.res_card.add_widget(self.resultado_label)
-        content.add_widget(self.res_card)
+    def view_hoja2():
+        return ft.Container(content=container_h2, bgcolor="#1E293B", padding=20, border_radius=12)
 
-        scroll.add_widget(content)
-        self.root_layout.add_widget(scroll)
-        self.add_widget(self.root_layout)
+    def view_hoja3():
+        return ft.Container(content=container_h3, bgcolor="#1E293B", padding=20, border_radius=12)
 
-    def buscar_combinacion(self, area_objetivo):
-        mejor = None
-        min_dif = 999999.0
-        for barra, pulg, unit, diam in TABLA_ACEROS:
-            for cant in range(2, 6):
-                total = cant * unit
-                if total >= area_objetivo:
-                    dif = total - area_objetivo
-                    if dif < min_dif:
-                        min_dif = dif
-                        mejor = (cant, barra, pulg, total, diam)
-        return mejor if mejor else (2, "#8", "1\"", 10.14, 2.54)
+    # -----------------------------------------------------------------------------
+    # INITIAL LANDING PAGE (CARÁTULA)
+    # -----------------------------------------------------------------------------
+    landing_view = ft.Container(
+        content=ft.Column([
+            ft.Icon(ft.icons.ENGINEERING, size=90, color="#38BDF8"),
+            ft.Text("STRUCTURAL DASHBOARD", size=28, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
+            ft.Text("Diseño Profesional de Vigas por Flexión (VSR & VDR)", size=16, color="#94A3B8"),
+            ft.SizedBox(height=20),
+            ft.Text("SELECCIONE LA NORMA DE DISEÑO PARA INICIAR:", size=14, weight="bold", color="#38BDF8"),
+            ft.Row([
+                ft.ElevatedButton(
+                    "NORMA NTP E.060",
+                    icon=ft.icons.ASSIGNMENT,
+                    on_click=lambda e: select_norm_and_start("E.060"),
+                    style=ft.ButtonStyle(bgcolor="#0284C7", color="#FFFFFF", padding=20, shape=ft.RoundedRectangleBorder(radius=10))
+                ),
+                ft.ElevatedButton(
+                    "CÓDIGO ACI 318",
+                    icon=ft.icons.VERIFY,
+                    on_click=lambda e: select_norm_and_start("ACI 318"),
+                    style=ft.ButtonStyle(bgcolor="#3B82F6", color="#FFFFFF", padding=20, shape=ft.RoundedRectangleBorder(radius=10))
+                )
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
+        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=12),
+        expand=True,
+        alignment=ft.alignment.center
+    )
 
-    def procesar_negativo(self, instance):
-        app = App.get_running_app()
-        h1 = app.root.get_screen('hoja1')
-        try:
-            b = float(h1.inputs["Base b (cm) [Min 25]:"].text)
-            h = float(h1.inputs["Altura h (cm):"].text)
-            d = round(h - 6.0, 2)
-            fc = float(h1.inputs["Concreto f'c (Kg/cm²):"].text)
-            fy = float(h1.inputs["Acero fy (Kg/cm²):"].text)
-            mu = float(h1.inputs["Momento Mu (-) (Tn·m):"].text)
-            phi = float(h1.inputs["Factor de reducción ø:"].text)
-            is_e060 = "NTP E.060" in h1.norma.text
+    page.add(landing_view)
 
-            k = round((mu * 100000.0) / (phi * fc * b * (d ** 2)), 4)
-            w = round((1.0 - math.sqrt(max(0.0, 1.0 - 2.36 * k))) / 1.18, 4)
-            rho = round(w * fc / fy, 4)
-            as_calc = round(rho * b * d, 2)
-
-            rho_min = round((0.71 * math.sqrt(fc)) / fy if is_e060 else (14.0 / fy), 4)[cite: 28]
-            as_min = round(rho_min * b * d, 2)[cite: 28]
-            beta1 = 0.85 if fc <= 280 else max(0.85 - (0.05 * (fc - 280) / 70), 0.65)
-            rho_max = round(0.32 * 0.85 * (fc / fy) if is_e060 else (0.85 * beta1 * fc / fy) * (0.003 / 0.007), 4)[cite: 28]
-            as_max = round(rho_max * b * d, 2)[cite: 28]
-
-            as_base = round(max(as_calc / 3.0, as_min), 2)
-            cant_p, barra_p, pulg_p, area_p, diam_p = self.buscar_combinacion(as_base)
-
-            as_remanente = max(0.0, as_calc - area_p)
-            cant_r, barra_r, pulg_r, area_r, diam_r = (0, "N/A", "N/A", 0.0, 0.0) if as_remanente == 0 else self.buscar_combinacion(as_remanente)
-
-            diam_estribo = 1.27 if diam_p > 2.54 else 0.95
-            estribo_str = "1/2\" (1.27 cm)" if diam_p > 2.54 else "3/8\" (0.95 cm)"
-
-            tot_barras = cant_p + (cant_r if as_remanente > 0 else 0)
-            suma_d = (cant_p * diam_p) + ((cant_r if as_remanente > 0 else 0) * diam_r)
-            max_d = max(diam_p, diam_r) if as_remanente > 0 else diam_p
-            ancho_nec = (8.0) + (2.0 * diam_estribo) + suma_d + (max(0, tot_barras - 1) * max(2.54, max_d))
-            ancho_cumple = ancho_nec <= b
-
-            estado_cuant = "CUMPLE" if rho_min < rho < rho_max else "NO CUMPLE"[cite: 28]
-            estado_b = "CUMPLE ESPACIO" if ancho_cumple else "EXCEDE ANCHO b"
-
-            self.viga_canvas.actualizar_parametros(b, h, cant_p, cant_r if as_remanente > 0 else 0, cumple=(estado_cuant=="CUMPLE" and ancho_cumple))
-
-            txt = f"[b][size=12sp][color=4EA8DE]DISEÑO MOMENTO NEGATIVO (-)[/color][/size][/b]\n"
-            txt += f"• As Total Req: [b]{as_calc:.2f} cm²[/b] | As Base: [b]{as_base:.2f} cm²[/b]\n"
-            txt += f"🔵 [b]Principal:[/b] [color=4EA8DE]{cant_p} Ø {pulg_p}[/color] ([b]{area_p:.2f} cm²[/b])\n"
-            if as_remanente > 0:
-                txt += f"🟠 [b]Refuerzo:[/b] [color=FFA533]{cant_r} Ø {pulg_r}[/color] ([b]{area_r:.2f} cm²[/b])\n"
-            txt += f"• Cuantía: [b][color={'06D6A0' if estado_cuant=='CUMPLE' else 'FF6B6B'}]{estado_cuant}[/color][/b]\n"[cite: 28]
-            txt += f"• Estribo: [b]{estribo_str}[/b] | Ancho Nec: [b]{ancho_nec:.2f} cm[/b]\n"
-            txt += f"• Verif b: [b][color={'06D6A0' if ancho_cumple else 'FF6B6B'}]{estado_b}[/color][/b]"
-            
-            self.resultado_label.text = txt
-        except Exception as e:
-            self.resultado_label.text = f"[color=FF6B6B][b]❌ Error:[/b] {str(e)}[/color]"
-
-
-class CalculadoraDisenoVigaApp(App):
-    def build(self):
-        self.title = 'Structural Dashboard - Viga Hojas Separadas'
-        sm = ScreenManager()
-        sm.add_widget(PantallaCaratula(name='caratula'))
-        sm.add_widget(Hoja1DatosCoeficientes(name='hoja1'))
-        sm.add_widget(Hoja2MomentoPositivo(name='hoja2'))
-        sm.add_widget(Hoja3MomentoNegativo(name='hoja3'))
-        return sm
-
-
-if __name__ == '__main__':
-    CalculadoraDisenoVigaApp().run()
+if __name__ == "__main__":
+    ft.app(target=main)
