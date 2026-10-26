@@ -36,6 +36,7 @@ jobs:
 
       - name: 📱 Compilar APK con Flet
         run: |
+          export PATH="$PATH:$HOME/flutter/bin"
           flet build apk
 
       - name: 📤 Subir APK generado
