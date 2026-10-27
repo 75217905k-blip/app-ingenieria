@@ -1,10 +1,34 @@
+[app]
+
+# (str) Title of your application
+title = Calculadora de Ingenieria
+
+# (str) Package name
+package.name = calculadoraingenieria
+
+# (str) Package domain (needed for android packaging)
+package.domain = org.ingenieria
+
+# (list) Source files to include
+source.include_exts = py,png,jpg,kv,atlas
+
+# (list) Source files to include
+source.dir = .
+
+# (str) Application versioning
+version = 0.1
+
 # (list) Application requirements
-# Cambiamos temporalmente quitando pillow y certifi si causan conflicto en p4a, o dejamos los básicos estables
 requirements = python3,kivy,kivymd
 
 # (list) Supported architectures
-# Forzamos solo arm64-v8a para evitar conflictos de compilación cruzada en el servidor de GitHub
 android.archs = arm64-v8a
+
+# (list) Permissions
+android.permissions = INTERNET
+
+# (str) Supported orientations
+orientation = portrait
 
 # (int) Target Android API
 android.api = 31
@@ -15,8 +39,16 @@ android.minapi = 21
 # (str) Android SDK version to use
 android.sdk = 33
 
-# (str) Android NDK version to use (fijo en una versión súper estable para python-for-android)
+# (str) Android NDK version to use
 android.ndk = 25b
 
 # (bool) Indicate if you want to accept Android SDK licenses
 android.accept_sdk_license = True
+
+[buildozer]
+
+# (int) Log level (0 = error, 1 = info, 2 = debug (with command output))
+log_level = 2
+
+# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
+warn_on_root = 1
