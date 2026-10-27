@@ -1,24 +1,14 @@
 import math
-import traceback
 from kivy.app import App
+from kivy.uix.screenmanager import Screen
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
 from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle, Line, Ellipse
 from kivy.metrics import dp
-
-# Intentamos importar KivyMD de forma segura
-try:
-    from kivymd.app import MDApp
-    from kivymd.uix.screen import MDScreen
-    from kivymd.uix.boxlayout import MDBoxLayout
-    from kivymd.uix.scrollview import MDScrollView
-    from kivymd.uix.label import MDLabel
-    from kivymd.uix.textfield import MDTextField
-    from kivymd.uix.button import MDRaisedButton
-    from kivymd.uix.card import MDCard
-    KIVYMD_AVAILABLE = True
-except Exception as e:
-    KIVYMD_AVAILABLE = False
-    INIT_ERROR = traceback.format_exc()
 
 # --- BASE DE DATOS DE ACERO COMERCIAL ---
 TABLA_ACEROS_CALCULO = {
@@ -148,135 +138,122 @@ class BeamCanvasWidget(Widget):
                         cy = (est_y + est_h) - radio_sup - 2
                         Ellipse(pos=(cx - radio_sup, cy - radio_sup), size=(radio_sup * 2, radio_sup * 2))
 
-if KIVYMD_AVAILABLE:
-    class VigaMDApp(MDApp):
-        def build(self):
-            try:
-                self.theme_cls.theme_style = "Dark"
-                self.theme_cls.primary_palette = "Blue"
 
-                screen = MDScreen()
-                scroll = MDScrollView()
-                
-                layout = MDBoxLayout(orientation='vertical', spacing=dp(15), padding=dp(15), size_hint_y=None)
-                layout.bind(minimum_height=layout.setter('height'))
+class VigaApp(App):
+    def build(self):
+        screen = Screen()
+        scroll = ScrollView()
+        
+        layout = BoxLayout(orientation='vertical', spacing=dp(15), padding=dp(15), size_hint_y=None)
+        layout.bind(minimum_height=layout.setter('height'))
 
-                layout.add_widget(MDLabel(text="Diseño y Detallado de Vigas - VSR", halign="center", bold=True, size_hint_y=None, height=dp(40)))
+        # Título principal
+        layout.add_widget(Label(text="Diseño y Detallado de Vigas - VSR", font_size=20, bold=True, size_hint_y=None, height=dp(40)))
 
-                card_inputs = MDCard(orientation='vertical', padding=dp(15), spacing=dp(10), size_hint_y=None, height=dp(420), elevation=2)
-                card_inputs.add_widget(MDLabel(text="Parámetros de Diseño", bold=True, size_hint_y=None, height=dp(30)))
+        # Parámetros de Entradas
+        layout.add_widget(Label(text="Parámetros de Diseño:", bold=True, size_hint_y=None, height=dp(25), halign="left"))
 
-                self.input_b = MDTextField(text="30", label="Base b (cm)", mode="fill")
-                card_inputs.add_widget(self.input_b)
+        self.input_b = TextInput(text="30", hint_text="Base b (cm)", multiline=False, size_hint_y=None, height=dp(45))
+        layout.add_widget(self.input_b)
 
-                self.input_h = MDTextField(text="60", label="Peralte h (cm)", mode="fill")
-                card_inputs.add_widget(self.input_h)
+        self.input_h = TextInput(text="60", hint_text="Peralte h (cm)", multiline=False, size_hint_y=None, height=dp(45))
+        layout.add_widget(self.input_h)
 
-                self.input_fc = MDTextField(text="210", label="f'c (kg/cm²)", mode="fill")
-                card_inputs.add_widget(self.input_fc)
+        self.input_fc = TextInput(text="210", hint_text="f'c (kg/cm²)", multiline=False, size_hint_y=None, height=dp(45))
+        layout.add_widget(self.input_fc)
 
-                self.input_fy = MDTextField(text="4200", label="fy (kg/cm²)", mode="fill")
-                card_inputs.add_widget(self.input_fy)
+        self.input_fy = TextInput(text="4200", hint_text="fy (kg/cm²)", multiline=False, size_hint_y=None, height=dp(45))
+        layout.add_widget(self.input_fy)
 
-                self.input_mu_pos = MDTextField(text="15.0", label="Mu (+) (Tn.m)", mode="fill")
-                card_inputs.add_widget(self.input_mu_pos)
+        self.input_mu_pos = TextInput(text="15.0", hint_text="Mu (+) (Tn.m)", multiline=False, size_hint_y=None, height=dp(45))
+        layout.add_widget(self.input_mu_pos)
 
-                self.input_mu_neg = MDTextField(text="22.0", label="Mu (-) (Tn.m)", mode="fill")
-                card_inputs.add_widget(self.input_mu_neg)
+        self.input_mu_neg = TextInput(text="22.0", hint_text="Mu (-) (Tn.m)", multiline=False, size_hint_y=None, height=dp(45))
+        layout.add_widget(self.input_mu_neg)
 
-                layout.add_widget(card_inputs)
+        # Botón de Cálculo
+        btn_calcular = Button(text="Ejecutar Diseño y Dibujar Sección", size_hint_y=None, height=dp(50), background_color=(0.1, 0.4, 0.8, 1))
+        btn_calcular.bind(on_press=self.calcular_diseno)
+        layout.add_widget(btn_calcular)
 
-                btn_calcular = MDRaisedButton(text="Ejecutar Diseño y Dibujar Sección", size_hint_x=1, on_press=self.calcular_diseno, elevation=3)
-                layout.add_widget(btn_calcular)
+        # Visor Gráfico
+        layout.add_widget(Label(text="Sección Transversal de la Viga", bold=True, size_hint_y=None, height=dp(25), halign="left"))
+        self.canvas_widget = BeamCanvasWidget(size_hint_y=None, height=dp(210))
+        layout.add_widget(self.canvas_widget)
 
-                card_canvas = MDCard(orientation='vertical', padding=dp(10), spacing=dp(5), size_hint_y=None, height=dp(260), elevation=2)
-                card_canvas.add_widget(MDLabel(text="Sección Transversal de la Viga", bold=True, size_hint_y=None, height=dp(25)))
-                
-                self.canvas_widget = BeamCanvasWidget(size_hint_y=None, height=dp(210))
-                card_canvas.add_widget(self.canvas_widget)
-                layout.add_widget(card_canvas)
+        # Memoria de Cálculo
+        layout.add_widget(Label(text="Memoria de Cálculo Técnica", bold=True, size_hint_y=None, height=dp(25), halign="left"))
+        
+        self.label_resultados = Label(
+            text="Ingrese los datos y presione el botón superior para calcular y dibujar.", 
+            size_hint_y=None,
+            height=dp(180),
+            halign="left", 
+            valign="top"
+        )
+        self.label_resultados.bind(size=self.label_resultados.setter('text_size'))
+        layout.add_widget(self.label_resultados)
+        
+        scroll.add_widget(layout)
+        screen.add_widget(scroll)
+        return screen
 
-                card_res = MDCard(orientation='vertical', padding=dp(15), spacing=dp(10), size_hint_y=None, height=dp(300), elevation=2)
-                card_res.add_widget(MDLabel(text="Memoria de Cálculo Técnica", bold=True, size_hint_y=None, height=dp(30)))
-                
-                self.label_resultados = MDLabel(
-                    text="Ingrese los datos y presione el botón superior para calcular y dibujar.", 
-                    halign="left", 
-                    valign="top"
-                )
-                self.label_resultados.bind(size=self.label_resultados.setter('text_size'))
-                card_res.add_widget(self.label_resultados)
-                
-                layout.add_widget(card_res)
+    def calcular_diseno(self, instance):
+        try:
+            b = float(self.input_b.text)
+            h = float(self.input_h.text)
+            fc = float(self.input_fc.text)
+            fy = float(self.input_fy.text)
+            mu_pos = float(self.input_mu_pos.text)
+            mu_neg = float(self.input_mu_neg.text)
 
-                scroll.add_widget(layout)
-                screen.add_widget(scroll)
-                return screen
+            if b < 25:
+                self.label_resultados.text = "⚠️ Error: El ancho b debe ser mínimo 25 cm por norma."
+                return
 
-            except Exception as e:
-                from kivymd.uix.label import MDLabel
-                return MDLabel(text=f"ERROR EN BUILD:\n{traceback.format_exc()}", halign="center")
+            d = h - 6.0
+            phi = 0.9
+            rho_min = max(0.8 * math.sqrt(fc) / fy, 14.1 / fy)
+            As_min = rho_min * b * d
 
-        def calcular_diseno(self, instance):
-            try:
-                b = float(self.input_b.text)
-                h = float(self.input_h.text)
-                fc = float(self.input_fc.text)
-                fy = float(self.input_fy.text)
-                mu_pos = float(self.input_mu_pos.text)
-                mu_neg = float(self.input_mu_neg.text)
+            def resolver_flexion(mu_ton):
+                mu_kg_cm = mu_ton * 100000.0
+                k = mu_kg_cm / (phi * b * (d**2))
+                radical = 0.7225 - (1.7 * k / fc)
+                if radical < 0:
+                    return None
+                omega = 0.85 - math.sqrt(radical)
+                return omega * (fc / fy) * b * d
 
-                if b < 25:
-                    self.label_resultados.text = "⚠️ Error: El ancho b debe ser mínimo 25 cm por norma."
-                    return
+            As_pos = resolver_flexion(mu_pos)
+            As_gov_pos = max(As_pos if As_pos else As_min, As_min)
+            opt_pos = optimizar_distribucion_acero(As_gov_pos, As_min, b)
 
-                d = h - 6.0
-                phi = 0.9
-                rho_min = max(0.8 * math.sqrt(fc) / fy, 14.1 / fy)
-                As_min = rho_min * b * d
+            As_neg = resolver_flexion(mu_neg)
+            As_gov_neg = max(As_neg if As_neg else As_min, As_min)
+            opt_neg = optimizar_distribucion_acero(As_gov_neg, As_min, b)
 
-                def resolver_flexion(mu_ton):
-                    mu_kg_cm = mu_ton * 100000.0
-                    k = mu_kg_cm / (phi * b * (d**2))
-                    radical = 0.7225 - (1.7 * k / fc)
-                    if radical < 0:
-                        return None
-                    omega = 0.85 - math.sqrt(radical)
-                    return omega * (fc / fy) * b * d
+            armado_inf = f"{opt_pos['cont_cant']}φ{opt_pos['cont_tipo']} + {opt_pos['baston_cant']}φ{opt_pos['baston_tipo']}" if opt_pos else "N/D"
+            armado_sup = f"{opt_neg['cont_cant']}φ{opt_neg['cont_tipo']} + {opt_neg['baston_cant']}φ{opt_neg['baston_tipo']}" if opt_neg else "N/D"
 
-                As_pos = resolver_flexion(mu_pos)
-                As_gov_pos = max(As_pos if As_pos else As_min, As_min)
-                opt_pos = optimizar_distribucion_acero(As_gov_pos, As_min, b)
+            self.canvas_widget.actualizar_datos(b, h, opt_pos, opt_neg)
 
-                As_neg = resolver_flexion(mu_neg)
-                As_gov_neg = max(As_neg if As_neg else As_min, As_min)
-                opt_neg = optimizar_distribucion_acero(As_gov_neg, As_min, b)
+            reporte = (
+                f"• Geometría: b={b}cm | h={h}cm | d={d:.1f}cm\n"
+                f"• Materiales: f'c={fc} | fy={fy} | As_min={As_min:.2f} cm²\n\n"
+                f"1. ACERO POSITIVO (+) [Inferior]:\n"
+                f"   - Req: {As_pos:.2f} cm² | Gob: {As_gov_pos:.2f} cm²\n"
+                f"   - Armado: {armado_inf} (Área: {opt_pos['area_total']:.2f} cm² ➔ CUMPLE)\n\n"
+                f"2. ACERO NEGATIVO (-) [Superior]:\n"
+                f"   - Req: {As_neg:.2f} cm² | Gob: {As_gov_neg:.2f} cm²\n"
+                f"   - Armado: {armado_sup} (Área: {opt_neg['area_total']:.2f} cm² ➔ CUMPLE)\n\n"
+                f"3. ESTRIBOS: 1φ3/8\" @ 0.05, 10 @ 0.10, resto @ 0.20m"
+            )
+            self.label_resultados.text = reporte
 
-                armado_inf = f"{opt_pos['cont_cant']}φ{opt_pos['cont_tipo']} + {opt_pos['baston_cant']}φ{opt_pos['baston_tipo']}" if opt_pos else "N/D"
-                armado_sup = f"{opt_neg['cont_cant']}φ{opt_neg['cont_tipo']} + {opt_neg['baston_cant']}φ{opt_neg['baston_tipo']}" if opt_neg else "N/D"
+        except Exception as ex:
+            self.label_resultados.text = f"❌ Error en los datos: {str(ex)}"
 
-                self.canvas_widget.actualizar_datos(b, h, opt_pos, opt_neg)
-
-                reporte = (
-                    f"• Geometría: b={b}cm | h={h}cm | d={d:.1f}cm\n"
-                    f"• Materiales: f'c={fc} | fy={fy} | As_min={As_min:.2f} cm²\n\n"
-                    f"1. ACERO POSITIVO (+) [Inferior]:\n"
-                    f"   - Requerido: {As_pos:.2f} cm² | Gobernaje: {As_gov_pos:.2f} cm²\n"
-                    f"   - Armado: {armado_inf} (Área: {opt_pos['area_total']:.2f} cm² ➔ CUMPLE)\n\n"
-                    f"2. ACERO NEGATIVO (-) [Superior]:\n"
-                    f"   - Requerido: {As_neg:.2f} cm² | Gobernaje: {As_gov_neg:.2f} cm²\n"
-                    f"   - Armado: {armado_sup} (Área: {opt_neg['area_total']:.2f} cm² ➔ CUMPLE)\n\n"
-                    f"3. ESTRIBOS: 1φ3/8\" @ 0.05, 10 @ 0.10, resto @ 0.20m"
-                )
-                self.label_resultados.text = reporte
-
-            except Exception as ex:
-                self.label_resultados.text = f"❌ Error en los datos: {str(ex)}"
-else:
-    class VigaMDApp(App):
-        def build(self):
-            from kivy.uix.label import Label
-            return Label(text=f"ERROR DE IMPORTACION KIVYMD:\n{INIT_ERROR}")
 
 if __name__ == '__main__':
-    VigaMDApp().run()
+    VigaApp().run()
