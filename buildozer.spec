@@ -19,13 +19,13 @@ source.dir = .
 version = 0.1
 
 # (list) Application requirements
-requirements = python3,kivy,kivymd
+requirements = python3,kivy,kivymd,pillow,certifi
 
 # (list) Supported architectures
 android.archs = arm64-v8a
 
 # (list) Permissions
-android.permissions = INTERNET
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
 
 # (str) Supported orientations
 orientation = portrait
