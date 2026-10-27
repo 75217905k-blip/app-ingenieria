@@ -12,7 +12,7 @@ package.domain = org.ingenieria
 # (list) Source files to include (let it empty to include all the files)
 source.include_exts = py,png,jpg,kv,atlas
 
-# (list) Source files to include (let it empty to include all the files)
+# (list) Source files to include
 source.dir = .
 
 # (str) Application versioning
@@ -27,8 +27,17 @@ android.permissions = INTERNET
 # (str) Supported orientations
 orientation = portrait
 
-# (list) List of service to declare
-#services = 
+# (int) Target Android API
+android.api = 31
+
+# (int) Minimum API your APK will support
+android.minapi = 21
+
+# (str) Android SDK version to use (fijo en 33 para evitar errores de Aidl)
+android.sdk = 33
+
+# (bool) Indicate if you want to accept Android SDK licenses
+android.accept_sdk_license = True
 
 [buildozer]
 
