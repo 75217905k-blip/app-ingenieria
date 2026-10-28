@@ -128,14 +128,12 @@ class BeamCanvasWidget(Widget):
 
             # REPRESENTACIÓN DE ACERO SEGÚN LA OPCIÓN ELEGIDA
             if self.modo_sa:
-                # Opción 1 (SA): Un solo punto exacto a la altura del peralte efectivo (d)
                 Color(0.2, 0.8, 1.0, 1)
-                punto_radio = 5
+                punto_radio = 6
                 cx_centro = v_x + v_w / 2.0
                 cy_d = v_y + v_h - (self.d_cm * escala)
                 Ellipse(pos=(cx_centro - punto_radio, cy_d - punto_radio), size=(punto_radio * 2, punto_radio * 2))
             else:
-                # Opción 2 (CA): Dibujar barras exactas según cantidad y diámetro ingresados
                 if self.diam_ca in TABLA_ACEROS_CALCULO:
                     radio_inf = (TABLA_ACEROS_CALCULO[self.diam_ca]['d'] * escala) / 2.0
                     Color(0.9, 0.2, 0.2, 1)
@@ -150,17 +148,14 @@ class BeamCanvasWidget(Widget):
 
             # --- ACOTADO TÉCNICO (b, h, d) ---
             Color(0.7, 0.8, 0.9, 1)
-            # Cota b (abajo)
             Line(points=[v_x, v_y - 10, v_x, v_y - 25], width=1)
             Line(points=[v_x + v_w, v_y - 10, v_x + v_w, v_y - 25], width=1)
             Line(points=[v_x, v_y - 18, v_x + v_w, v_y - 18], width=1)
 
-            # Cota h (izquierda)
             Line(points=[v_x - 10, v_y, v_x - 25, v_y], width=1)
             Line(points=[v_x - 10, v_y + v_h, v_x - 25, v_y + v_h], width=1)
             Line(points=[v_x - 18, v_y, v_x - 18, v_y + v_h], width=1)
 
-            # Cota d (derecha)
             d_escala_y = v_y + v_h - (self.d_cm * escala)
             Color(0.2, 0.9, 0.5, 1)
             Line(points=[v_x + v_w + 10, v_y + v_h, v_x + v_w + 25, v_y + v_h], width=1)
@@ -186,39 +181,18 @@ class CaratulaScreen(Screen):
         super(CaratulaScreen, self).__init__(**kwargs)
         layout = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(20))
         
-        lbl_titulo = Label(
-            text="DISEÑO DE VIGAS",
-            font_size=dp(30),
-            bold=True,
-            size_hint_y=None,
-            height=dp(60),
-            halign='center'
-        )
-        lbl_subtitulo = Label(
-            text="Módulo de Análisis y Detallado Estructural\nNorma Técnica Peruana NTP E.060",
-            font_size=dp(15),
-            halign='center',
-            size_hint_y=None,
-            height=dp(60)
-        )
+        lbl_titulo = Label(text="DISEÑO DE VIGAS", font_size=dp(30), bold=True, size_hint_y=None, height=dp(60), halign='center')
+        lbl_subtitulo = Label(text="Módulo de Análisis y Detallado Estructural\nNorma Técnica Peruana NTP E.060", font_size=dp(15), halign='center', size_hint_y=None, height=dp(60))
         
         spacer = Widget()
         
-        btn_ingresar = Button(
-            text="INGRESAR AL SISTEMA ➔",
-            font_size=dp(18),
-            bold=True,
-            size_hint_y=None,
-            height=dp(60),
-            background_color=(0.1, 0.5, 0.8, 1)
-        )
+        btn_ingresar = Button(text="INGRESAR AL SISTEMA ➔", font_size=dp(18), bold=True, size_hint_y=None, height=dp(60), background_color=(0.1, 0.5, 0.8, 1))
         btn_ingresar.bind(on_press=self.ir_a_calculadora)
 
         layout.add_widget(lbl_titulo)
         layout.add_widget(lbl_subtitulo)
         layout.add_widget(spacer)
         layout.add_widget(btn_ingresar)
-        
         self.add_widget(layout)
 
     def ir_a_calculadora(self, instance):
@@ -259,21 +233,13 @@ class CalculadoraScreen(Screen):
         layout1.add_widget(Label(text="HOJA 1: DATOS Y PARÁMETROS DE DISEÑO", bold=True, font_size=16, size_hint_y=None, height=dp(30)))
         layout1.add_widget(Label(text="Norma de Diseño: NTP E.060 (McCormac / Morales)", font_size=13, size_hint_y=None, height=dp(22)))
 
-        # Selector de Modalidad SA / CA
         lbl_mod = Label(text="Seleccione la Modalidad de Cálculo:", halign='left', font_size=14, bold=True, size_hint_y=None, height=dp(22))
         lbl_mod.bind(size=lbl_mod.setter('text_size'))
         layout1.add_widget(lbl_mod)
 
         box_toggles = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(50), spacing=dp(10))
-        self.btn_sa = ToggleButton(
-            text='OPCIÓN 1: SA\n(Sin Acero)',
-            group='modo_d',
-            state='down'
-        )
-        self.btn_ca = ToggleButton(
-            text='OPCIÓN 2: CA\n(Con Acero Long.)',
-            group='modo_d'
-        )
+        self.btn_sa = ToggleButton(text='OPCIÓN 1: SA\n(Sin Acero)', group='modo_d', state='down')
+        self.btn_ca = ToggleButton(text='OPCIÓN 2: CA\n(Con Acero Long.)', group='modo_d')
         
         self.btn_sa.bind(on_press=self.actualizar_estado_modo)
         self.btn_ca.bind(on_press=self.actualizar_estado_modo)
@@ -282,12 +248,11 @@ class CalculadoraScreen(Screen):
         box_toggles.add_widget(self.btn_ca)
         layout1.add_widget(box_toggles)
 
-        # --- CUADRO DE RELLENO EXCLUSIVO PARA OPCIÓN 2 (CA) ---
+        # PANEL ACERO CA
         self.box_acero_ca_panel = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(85), spacing=dp(5), padding=dp(5))
         self.box_acero_ca_panel.add_widget(Label(text="⚙️ DATOS DEL ACERO LONGITUDINAL (Modo CA):", font_size=13, bold=True, color=(0.2, 0.7, 1, 1), size_hint_y=None, height=dp(20)))
         
         sub_grid_ca = GridLayout(cols=2, size_hint_y=None, height=dp(45), spacing=dp(10))
-        
         sub_grid_ca.add_widget(Label(text="Cant. de barras:", font_size=12, halign='right'))
         self.ti_ca_cant = TextInput(text="3", multiline=False)
         sub_grid_ca.add_widget(self.ti_ca_cant)
@@ -302,7 +267,6 @@ class CalculadoraScreen(Screen):
         self.box_acero_ca_panel.disabled = True
         self.box_acero_ca_panel.height = 0
 
-        # Encabezado de la Tabla de 3 Columnas
         header_grid = GridLayout(cols=3, size_hint_y=None, height=dp(35), spacing=dp(5))
         header_grid.add_widget(Label(text="Parámetro", bold=True, font_size=13))
         header_grid.add_widget(Label(text="Col. 2 (SA)", bold=True, font_size=13))
@@ -325,7 +289,6 @@ class CalculadoraScreen(Screen):
 
         for key, lbl_text, def_val in filas_datos:
             row_box = GridLayout(cols=3, size_hint_y=None, height=dp(45), spacing=dp(5))
-            
             lbl = Label(text=lbl_text, font_size=14, bold=True, halign='left')
             lbl.bind(size=lbl.setter('text_size'))
             row_box.add_widget(lbl)
@@ -359,31 +322,75 @@ class CalculadoraScreen(Screen):
         self.screen1.add_widget(scroll1)
         self.sm.add_widget(self.screen1)
 
-        # PESTAÑA 2: MOMENTO (+) CON DIBUJO Y ACOTADO DINÁMICO
+        # PESTAÑA 2: MOMENTO (+) CON TABLA DE CÁLCULO Y BLOQUE VSR/VDR INTEGRADO
         self.screen2 = Screen(name='tab2')
-        layout2 = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
-        layout2.add_widget(Label(text="HOJA 2: DISEÑO - MOMENTO POSITIVO (+) Y SECCIÓN ACOTADA", bold=True, size_hint_y=None, height=dp(30)))
+        scroll2 = ScrollView()
+        layout2 = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10), size_hint_y=None)
+        layout2.bind(minimum_height=layout2.setter('height'))
         
-        self.canvas_widget = BeamCanvasWidget(size_hint_y=None, height=dp(300))
+        layout2.add_widget(Label(text="HOJA 2: DISEÑO - MOMENTO POSITIVO (+)", bold=True, size_hint_y=None, height=dp(30)))
+        
+        self.canvas_widget = BeamCanvasWidget(size_hint_y=None, height=dp(220))
         layout2.add_widget(self.canvas_widget)
 
-        self.label_res2 = Label(text="Resultados de Acero Inferior (+) aparecerán aquí.", size_hint_y=None, height=dp(120), halign='left', valign='top')
-        self.label_res2.bind(size=self.label_res2.setter('text_size'))
-        layout2.add_widget(self.label_res2)
-        
-        self.screen2.add_widget(layout2)
+        self.label_tabla_pos = Label(
+            text="[ TABLA DE CÁLCULO - MOMENTO POSITIVO ]\n• K = -\n• w = -\n• ρ = -\n• As = - cm²",
+            size_hint_y=None, height=dp(130), halign='left', valign='top', font_size=14
+        )
+        self.label_tabla_pos.bind(size=self.label_tabla_pos.setter('text_size'))
+        layout2.add_widget(self.label_tabla_pos)
+
+        # Cuadro estructurado de Cuantías y VSR/VDR
+        self.label_cuantia_pos = Label(
+            text="┌──────────────────────────────────────────────┐\n"
+                 "│        CÁLCULO CUANTÍA (MÍN / MÁX)           │\n"
+                 "├──────────────────────────────────────────────┤\n"
+                 "│ • ρmin = -          |  As min = - cm²        │\n"
+                 "│ • ρmax = -          |  As max = - cm²        │\n"
+                 "│ • Verif. (ρ y ρmax): -                       │\n"
+                 "└──────────────────────────────────────────────┘",
+            size_hint_y=None, height=dp(150), halign='left', valign='top', font_size=13
+        )
+        self.label_cuantia_pos.bind(size=self.label_cuantia_pos.setter('text_size'))
+        layout2.add_widget(self.label_cuantia_pos)
+
+        scroll2.add_widget(layout2)
+        self.screen2.add_widget(scroll2)
         self.sm.add_widget(self.screen2)
 
-        # PESTAÑA 3: MOMENTO (-)
+        # PESTAÑA 3: MOMENTO (-) CON TABLA DE CÁLCULO Y BLOQUE VSR/VDR INTEGRADO
         self.screen3 = Screen(name='tab3')
-        layout3 = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(15))
+        scroll3 = ScrollView()
+        layout3 = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(15), size_hint_y=None)
+        layout3.bind(minimum_height=layout3.setter('height'))
+        
         layout3.add_widget(Label(text="HOJA 3: DISEÑO - MOMENTO NEGATIVO (-)", bold=True, size_hint_y=None, height=dp(30)))
         
-        self.label_res3 = Label(text="Resultados de Acero Superior (-) y Estribos aparecerán aquí.", size_hint_y=None, height=dp(350), halign='left', valign='top')
-        self.label_res3.bind(size=self.label_res3.setter('text_size'))
-        layout3.add_widget(self.label_res3)
+        self.label_tabla_neg = Label(
+            text="[ TABLA DE CÁLCULO - MOMENTO NEGATIVO ]\n• K = -\n• w = -\n• ρ = -\n• As = - cm²",
+            size_hint_y=None, height=dp(130), halign='left', valign='top', font_size=14
+        )
+        self.label_tabla_neg.bind(size=self.label_tabla_neg.setter('text_size'))
+        layout3.add_widget(self.label_tabla_neg)
 
-        self.screen3.add_widget(layout3)
+        # Cuadro estructurado de Cuantías y VSR/VDR
+        self.label_cuantia_neg = Label(
+            text="┌──────────────────────────────────────────────┐\n"
+                 "│        CÁLCULO CUANTÍA (MÍN / MÁX)           │\n"
+                 "├──────────────────────────────────────────────┤\n"
+                 "│ • ρmin = -          |  As min = - cm²        │\n"
+                 "│ • ρmax = -          |  As max = - cm²        │\n"
+                 "│ • Verif. (ρ y ρmax): -                       │\n"
+                 "└──────────────────────────────────────────────┘",
+            size_hint_y=None, height=dp(150), halign='left', valign='top', font_size=13
+        )
+        self.label_cuantia_neg.bind(size=self.label_cuantia_neg.setter('text_size'))
+        layout3.add_widget(self.label_cuantia_neg)
+        
+        layout3.add_widget(Label(text="[ DETALLE DE ESTRIBUCIÓN Y ARMADO ]\n• Estribos: 1φ3/8\" @ 0.05, 10 @ 0.10, resto @ 0.20m", size_hint_y=None, height=dp(80), halign='left', valign='top'))
+
+        scroll3.add_widget(layout3)
+        self.screen3.add_widget(scroll3)
         self.sm.add_widget(self.screen3)
 
         root_layout.add_widget(self.sm)
@@ -423,101 +430,4 @@ class CalculadoraScreen(Screen):
 
     def cambiar_pestana(self, nombre_tab):
         self.sm.current = nombre_tab
-        self.btn_tab1.background_color = (0.1, 0.2, 0.35, 1)
-        self.btn_tab2.background_color = (0.1, 0.2, 0.35, 1)
-        self.btn_tab3.background_color = (0.1, 0.2, 0.35, 1)
-        
-        if nombre_tab == 'tab1':
-            self.btn_tab1.background_color = (0.15, 0.25, 0.45, 1)
-        elif nombre_tab == 'tab2':
-            self.btn_tab2.background_color = (0.15, 0.25, 0.45, 1)
-        elif nombre_tab == 'tab3':
-            self.btn_tab3.background_color = (0.15, 0.25, 0.45, 1)
-
-    def ejecutar_calculos(self, instance):
-        try:
-            modo_sa = (self.btn_sa.state == 'down')
-            if modo_sa:
-                b = float(self.inputs_sa['b'].text)
-                h = float(self.inputs_sa['h'].text)
-                fc = float(self.inputs_sa['fc'].text)
-                fy = float(self.inputs_sa['fy'].text)
-                mu_pos = float(self.inputs_sa['mu_pos'].text)
-                mu_neg = float(self.inputs_sa['mu_neg'].text)
-                phi = float(self.inputs_sa['phi'].text)
-                
-                d = h - 6.0
-                info_d_str = f"Modo SA: d = h - 6.0 = {d:.2f} cm"
-            else:
-                b = float(self.inputs_ca['b'].text)
-                h = float(self.inputs_ca['h'].text)
-                fc = float(self.inputs_ca['fc'].text)
-                fy = float(self.inputs_ca['fy'].text)
-                mu_pos = float(self.inputs_ca['mu_pos'].text)
-                mu_neg = float(self.inputs_ca['mu_neg'].text)
-                phi = float(self.inputs_ca['phi'].text)
-                
-                cant_l = int(self.ti_ca_cant.text)
-                nombre_diam_l = self.spinner_ca_diam.text
-                phi_l = TABLA_ACEROS_CALCULO[nombre_diam_l]['d']
-                
-                if phi_l > 2.54:
-                    d_estribo = TABLA_ACEROS_CALCULO['1/2"']['d']
-                    est_str = '1/2"'
-                else:
-                    d_estribo = TABLA_ACEROS_CALCULO['3/8"']['d']
-                    est_str = '3/8"'
-                
-                recubrimiento = 4.0
-                d = h - recubrimiento - d_estribo - (phi_l / 2.0)
-                
-                self.inputs_ca['d'].text = f"{d:.2f}"
-                info_d_str = f"Modo CA ({cant_l}ø{nombre_diam_l}): d = h - 4 - {est_str} - (øL/2) = {d:.2f} cm"
-
-            rho_min = max(0.8 * math.sqrt(fc) / fy, 14.1 / fy)
-            As_min = rho_min * b * d
-
-            def resolver_flexion(mu_ton):
-                mu_kg_cm = mu_ton * 100000.0
-                k = mu_kg_cm / (phi * b * (d**2))
-                radical = 0.7225 - (1.7 * k / fc)
-                if radical < 0:
-                    return None
-                omega = 0.85 - math.sqrt(radical)
-                return omega * (fc / fy) * b * d
-
-            As_pos = resolver_flexion(mu_pos)
-            As_gov_pos = max(As_pos if As_pos else As_min, As_min)
-            opt_pos = optimizar_distribucion_acero(As_gov_pos, As_min, b)
-
-            As_neg = resolver_flexion(mu_neg)
-            As_gov_neg = max(As_neg if As_neg else As_min, As_min)
-            opt_neg = optimizar_distribucion_acero(As_gov_neg, As_min, b)
-
-            armado_inf = f"{opt_pos['cont_cant']}φ{opt_pos['cont_tipo']} + {opt_pos['baston_cant']}φ{opt_pos['baston_tipo']}" if opt_pos else "N/D"
-
-            # Actualizar widget de dibujo técnico respetando la opción SA o CA
-            if modo_sa:
-                self.canvas_widget.actualizar_datos(b, h, d, modo_sa=True, opt_inf=opt_pos)
-            else:
-                self.canvas_widget.actualizar_datos(b, h, d, modo_sa=False, opt_inf=opt_pos, cant_ca=int(self.ti_ca_cant.text), diam_ca=self.spinner_ca_diam.text)
-
-            self.label_res1.text = f"✅ Cálculo exitoso bajo NTP E.060\n• {info_d_str}\n• As mín = {As_min:.2f} cm²\n• Revise las pestañas 2 y 3."
-            self.label_res2.text = f"MOMENTO POSITIVO (+) Y SECCIÓN:\n• Req: {As_pos:.2f} cm² | Gob: {As_gov_pos:.2f} cm²\n• Armado Inf: {armado_inf}\n• Área Total: {opt_pos['area_total']:.2f} cm² (CUMPLE)"
-            self.label_res3.text = f"MOMENTO NEGATIVO (-) Y ESTRIBOS:\n• Req: {As_neg:.2f} cm² | Gob: {As_gov_neg:.2f} cm²\n• Estribos: 1φ3/8\" @ 0.05, 10 @ 0.10, resto @ 0.20m"
-
-        except Exception as ex:
-            self.label_res1.text = f"❌ Error en datos: {str(ex)}"
-
-
-# --- APLICACIÓN PRINCIPAL ---
-class MainApp(App):
-    def build(self):
-        sm = ScreenManager()
-        sm.add_widget(CaratulaScreen(name='caratula'))
-        sm.add_widget(CalculadoraScreen(name='pantalla_principal'))
-        return sm
-
-
-if __name__ == '__main__':
-    MainApp().run()
+        self.btn_tab1.background_color = (0.1, 0.2
