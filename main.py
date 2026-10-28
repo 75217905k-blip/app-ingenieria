@@ -61,7 +61,8 @@ def optimizar_distribucion_acero(As_requerido, As_min, b_cm):
                                         'area_total': area_total,
                                         'exceso': area_total - As_requerido,
                                         'ancho_req': ancho_req,
-                                        'n_total': n_total
+                                        'n_total': n_total,
+                                        'as_c_req': As_c_req
                                     })
     if not mejores_opciones:
         return None
@@ -69,7 +70,7 @@ def optimizar_distribucion_acero(As_requerido, As_min, b_cm):
     return mejores_opciones[0]
 
 
-# --- WIDGET DE DIBUJO TÉCNICO CON ACOTADO Y LÓGICA SA/CA ---
+# --- WIDGET DE DIBUJO TÉCNICO CON ACOTADO Y SOPORTE DE BARRAS DINÁMICAS ---
 class BeamCanvasWidget(Widget):
     def __init__(self, **kwargs):
         super(BeamCanvasWidget, self).__init__(**kwargs)
@@ -126,13 +127,21 @@ class BeamCanvasWidget(Widget):
                 Color(1.0, 0.6, 0.2, 1)
                 Line(rectangle=(est_x, est_y, est_w, est_h), width=1.5)
 
-            # REPRESENTACIÓN DE ACERO SEGÚN LA OPCIÓN ELEGIDA
+            # REPRESENTACIÓN DEL ACERO SEGÚN MODO
             if self.modo_sa:
-                Color(0.2, 0.8, 1.0, 1)
-                punto_radio = 6
-                cx_centro = v_x + v_w / 2.0
-                cy_d = v_y + v_h - (self.d_cm * escala)
-                Ellipse(pos=(cx_centro - punto_radio, cy_d - punto_radio), size=(punto_radio * 2, punto_radio * 2))
+                if self.opt_inf:
+                    n_total = self.opt_inf['n_total']
+                    tipo_dibujo = self.opt_inf['cont_tipo']
+                    if tipo_dibujo in TABLA_ACEROS_CALCULO:
+                        radio_inf = (TABLA_ACEROS_CALCULO[tipo_dibujo]['d'] * escala) / 2.0
+                        Color(0.2, 0.8, 1.0, 1)
+                        if n_total > 0:
+                            espacio_util = est_w - (2 * radio_inf)
+                            paso = espacio_util / max(1, (n_total - 1)) if n_total > 1 else 0
+                            for i in range(n_total):
+                                cx = est_x + radio_inf + (i * paso)
+                                cy = est_y + radio_inf + 2
+                                Ellipse(pos=(cx - radio_inf, cy - radio_inf), size=(radio_inf * 2, radio_inf * 2))
             else:
                 if self.diam_ca in TABLA_ACEROS_CALCULO:
                     radio_inf = (TABLA_ACEROS_CALCULO[self.diam_ca]['d'] * escala) / 2.0
@@ -199,18 +208,18 @@ class CaratulaScreen(Screen):
         self.manager.current = 'pantalla_principal'
 
 
-# --- PANTALLA PRINCIPAL CON PESTAÑAS Y CUADRO DE DATOS ---
+# --- PANTALLA PRINCIPAL CON 3 PESTAÑAS Y CUADRO DE DATOS ---
 class CalculadoraScreen(Screen):
     def __init__(self, **kwargs):
         super(CalculadoraScreen, self).__init__(**kwargs)
         root_layout = BoxLayout(orientation='vertical')
 
-        # --- BARRA DE PESTAÑAS SUPERIOR ---
+        # --- BARRA DE PESTAÑAS SUPERIOR (3 PÁGINAS) ---
         nav_layout = GridLayout(cols=3, size_hint_y=None, height=dp(45))
         
-        self.btn_tab1 = Button(text="1. Coef. y Cuantías", background_color=(0.15, 0.25, 0.45, 1))
-        self.btn_tab2 = Button(text="2. Momento (+)", background_color=(0.1, 0.2, 0.35, 1))
-        self.btn_tab3 = Button(text="3. Momento (-)", background_color=(0.1, 0.2, 0.35, 1))
+        self.btn_tab1 = Button(text="1. Parámetros", background_color=(0.15, 0.25, 0.45, 1), font_size=dp(12))
+        self.btn_tab2 = Button(text="2. Mom. (+)", background_color=(0.1, 0.2, 0.35, 1), font_size=dp(12))
+        self.btn_tab3 = Button(text="3. Mom. (-)", background_color=(0.1, 0.2, 0.35, 1), font_size=dp(12))
 
         self.btn_tab1.bind(on_press=lambda x: self.cambiar_pestana('tab1'))
         self.btn_tab2.bind(on_press=lambda x: self.cambiar_pestana('tab2'))
@@ -224,7 +233,7 @@ class CalculadoraScreen(Screen):
         # --- GESTOR DE PANTALLAS (PESTAÑAS) ---
         self.sm = ScreenManager()
 
-        # PESTAÑA 1: DATOS Y PARÁMETROS (ESTILO EXCEL 3 COLUMNAS)
+        # PÁGINA 1 (Tab1): HOJA 1 - DATOS Y PARÁMETROS
         self.screen1 = Screen(name='tab1')
         scroll1 = ScrollView()
         layout1 = BoxLayout(orientation='vertical', spacing=dp(12), padding=dp(15), size_hint_y=None)
@@ -322,7 +331,7 @@ class CalculadoraScreen(Screen):
         self.screen1.add_widget(scroll1)
         self.sm.add_widget(self.screen1)
 
-        # PESTAÑA 2: MOMENTO (+) CON TABLA DE CÁLCULO Y BLOQUE VSR/VDR INTEGRADO
+        # PÁGINA 2 (Tab2): HOJA 2 - MOMENTO POSITIVO (+) CON SUS DOS CUADROS ORIGINALES
         self.screen2 = Screen(name='tab2')
         scroll2 = ScrollView()
         layout2 = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10), size_hint_y=None)
@@ -330,8 +339,8 @@ class CalculadoraScreen(Screen):
         
         layout2.add_widget(Label(text="HOJA 2: DISEÑO - MOMENTO POSITIVO (+)", bold=True, size_hint_y=None, height=dp(30)))
         
-        self.canvas_widget = BeamCanvasWidget(size_hint_y=None, height=dp(220))
-        layout2.add_widget(self.canvas_widget)
+        self.canvas_widget_pos = BeamCanvasWidget(size_hint_y=None, height=dp(220))
+        layout2.add_widget(self.canvas_widget_pos)
 
         self.label_tabla_pos = Label(
             text="[ TABLA DE CÁLCULO - MOMENTO POSITIVO ]\n• K = -\n• w = -\n• ρ = -\n• As = - cm²",
@@ -340,7 +349,6 @@ class CalculadoraScreen(Screen):
         self.label_tabla_pos.bind(size=self.label_tabla_pos.setter('text_size'))
         layout2.add_widget(self.label_tabla_pos)
 
-        # Cuadro estructurado de Cuantías y VSR/VDR
         self.label_cuantia_pos = Label(
             text="┌──────────────────────────────────────────────┐\n"
                  "│        CÁLCULO CUANTÍA (MÍN / MÁX)           │\n"
@@ -358,7 +366,7 @@ class CalculadoraScreen(Screen):
         self.screen2.add_widget(scroll2)
         self.sm.add_widget(self.screen2)
 
-        # PESTAÑA 3: MOMENTO (-) CON TABLA DE CÁLCULO Y BLOQUE VSR/VDR INTEGRADO
+        # PÁGINA 3 (Tab3): HOJA 3 - MOMENTO NEGATIVO (-) CON SUS DOS CUADROS ORIGINALES
         self.screen3 = Screen(name='tab3')
         scroll3 = ScrollView()
         layout3 = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(15), size_hint_y=None)
@@ -366,6 +374,9 @@ class CalculadoraScreen(Screen):
         
         layout3.add_widget(Label(text="HOJA 3: DISEÑO - MOMENTO NEGATIVO (-)", bold=True, size_hint_y=None, height=dp(30)))
         
+        self.canvas_widget_neg = BeamCanvasWidget(size_hint_y=None, height=dp(220))
+        layout3.add_widget(self.canvas_widget_neg)
+
         self.label_tabla_neg = Label(
             text="[ TABLA DE CÁLCULO - MOMENTO NEGATIVO ]\n• K = -\n• w = -\n• ρ = -\n• As = - cm²",
             size_hint_y=None, height=dp(130), halign='left', valign='top', font_size=14
@@ -373,7 +384,6 @@ class CalculadoraScreen(Screen):
         self.label_tabla_neg.bind(size=self.label_tabla_neg.setter('text_size'))
         layout3.add_widget(self.label_tabla_neg)
 
-        # Cuadro estructurado de Cuantías y VSR/VDR
         self.label_cuantia_neg = Label(
             text="┌──────────────────────────────────────────────┐\n"
                  "│        CÁLCULO CUANTÍA (MÍN / MÁX)           │\n"
@@ -386,8 +396,6 @@ class CalculadoraScreen(Screen):
         )
         self.label_cuantia_neg.bind(size=self.label_cuantia_neg.setter('text_size'))
         layout3.add_widget(self.label_cuantia_neg)
-        
-        layout3.add_widget(Label(text="[ DETALLE DE ESTRIBUCIÓN Y ARMADO ]\n• Estribos: 1φ3/8\" @ 0.05, 10 @ 0.10, resto @ 0.20m", size_hint_y=None, height=dp(80), halign='left', valign='top'))
 
         scroll3.add_widget(layout3)
         self.screen3.add_widget(scroll3)
@@ -430,4 +438,148 @@ class CalculadoraScreen(Screen):
 
     def cambiar_pestana(self, nombre_tab):
         self.sm.current = nombre_tab
-        self.btn_tab1.background_color = (0.1, 0.2
+        self.btn_tab1.background_color = (0.1, 0.2, 0.35, 1)
+        self.btn_tab2.background_color = (0.1, 0.2, 0.35, 1)
+        self.btn_tab3.background_color = (0.1, 0.2, 0.35, 1)
+        
+        if nombre_tab == 'tab1':
+            self.btn_tab1.background_color = (0.15, 0.25, 0.45, 1)
+        elif nombre_tab == 'tab2':
+            self.btn_tab2.background_color = (0.15, 0.25, 0.45, 1)
+        elif nombre_tab == 'tab3':
+            self.btn_tab3.background_color = (0.15, 0.25, 0.45, 1)
+
+    def ejecutar_calculos(self, instance):
+        try:
+            modo_sa = (self.btn_sa.state == 'down')
+            if modo_sa:
+                b = float(self.inputs_sa['b'].text)
+                h = float(self.inputs_sa['h'].text)
+                fc = float(self.inputs_sa['fc'].text)
+                fy = float(self.inputs_sa['fy'].text)
+                mu_pos = float(self.inputs_sa['mu_pos'].text)
+                mu_neg = float(self.inputs_sa['mu_neg'].text)
+                phi = float(self.inputs_sa['phi'].text)
+                
+                d = h - 6.0
+                info_d_str = f"Modo SA: d = h - 6.0 = {d:.2f} cm"
+            else:
+                b = float(self.inputs_ca['b'].text)
+                h = float(self.inputs_ca['h'].text)
+                fc = float(self.inputs_ca['fc'].text)
+                fy = float(self.inputs_ca['fy'].text)
+                mu_pos = float(self.inputs_ca['mu_pos'].text)
+                mu_neg = float(self.inputs_ca['mu_neg'].text)
+                phi = float(self.inputs_sa['phi'].text)
+                
+                cant_l = int(self.ti_ca_cant.text)
+                nombre_diam_l = self.spinner_ca_diam.text
+                phi_l = TABLA_ACEROS_CALCULO[nombre_diam_l]['d']
+                
+                if phi_l > 2.54:
+                    d_estribo = TABLA_ACEROS_CALCULO['1/2"']['d']
+                else:
+                    d_estribo = TABLA_ACEROS_CALCULO['3/8"']['d']
+                
+                recubrimiento = 4.0
+                d = h - recubrimiento - d_estribo - (phi_l / 2.0)
+                
+                self.inputs_ca['d'].text = f"{d:.2f}"
+                info_d_str = f"Modo CA ({cant_l}ø{nombre_diam_l}): d = {d:.2f} cm"
+
+            # --- CÁLCULOS FLEXIÓN Y CUANTÍAS ---
+            rho_min = max(0.8 * math.sqrt(fc) / fy, 14.1 / fy)
+            As_min = rho_min * b * d
+
+            beta1 = 0.85 if fc <= 280 else max(0.85 - 0.05 * (fc - 280) / 70, 0.65)
+            rho_b = 0.85 * beta1 * (fc / fy) * (6000.0 / (6000.0 + fy))
+            rho_max = 0.75 * rho_b
+            As_max = rho_max * b * d
+
+            def calcular_detalles_flexion(mu_ton):
+                mu_kg_cm = mu_ton * 100000.0
+                k_val = mu_kg_cm / (phi * b * (d**2))
+                radical = 0.7225 - (1.7 * k_val / fc)
+                omega_val = 0.85 - math.sqrt(radical) if radical >= 0 else 0
+                
+                rho_val = omega_val * (fc / fy)
+                as_val = rho_val * b * d
+                as_gov = max(as_val, As_min)
+                
+                verif_str = f"{rho_val:.4f} < {rho_max:.4f} -> VSR" if rho_val <= rho_max else f"{rho_val:.4f} > {rho_max:.4f} -> VDR"
+                return {'k': round(k_val, 4), 'w': round(omega_val, 4), 'rho': round(rho_val, 4), 'as': round(as_gov, 2), 'verif': verif_str}
+
+            res_pos = calcular_detalles_flexion(mu_pos)
+            res_neg = calcular_detalles_flexion(mu_neg)
+            
+            opt_pos = optimizar_distribucion_acero(res_pos['as'], As_min, b)
+            armado_inf = f"{opt_pos['cont_cant']}φ{opt_pos['cont_tipo']} + {opt_pos['baston_cant']}φ{opt_pos['baston_tipo']}" if opt_pos else "N/D"
+
+            opt_neg = optimizar_distribucion_acero(res_neg['as'], As_min, b)
+            armado_sup = f"{opt_neg['cont_cant']}φ{opt_neg['cont_tipo']} + {opt_neg['baston_cant']}φ{opt_neg['baston_tipo']}" if opt_neg else "N/D"
+
+            # --- ACTUALIZACIÓN DE GRÁFICOS DINÁMICOS ---
+            if modo_sa:
+                self.canvas_widget_pos.actualizar_datos(b, h, d, modo_sa=True, opt_inf=opt_pos)
+                self.canvas_widget_neg.actualizar_datos(b, h, d, modo_sa=True, opt_inf=opt_neg)
+            else:
+                self.canvas_widget_pos.actualizar_datos(b, h, d, modo_sa=False, opt_inf=opt_pos, cant_ca=int(self.ti_ca_cant.text), diam_ca=self.spinner_ca_diam.text)
+                self.canvas_widget_neg.actualizar_datos(b, h, d, modo_sa=False, opt_inf=opt_neg, cant_ca=int(self.ti_ca_cant.text), diam_ca=self.spinner_ca_diam.text)
+
+            self.label_res1.text = f"✅ Cálculo exitoso bajo NTP E.060\n• {info_d_str}\n• As mín = {As_min:.2f} cm²\n• Revise las pestañas (+) y (-)."
+            
+            # Textos para Momento Positivo (+)
+            self.label_tabla_pos.text = (
+                f"[ TABLA DE CÁLCULO - MOMENTO POSITIVO (+) ]\n"
+                f"• Mu (+) = {mu_pos:.2f} Tn.m\n"
+                f"• K        = {res_pos['k']:.4f}\n"
+                f"• w        = {res_pos['w']:.4f}\n"
+                f"• ρ        = {res_pos['rho']:.4f}\n"
+                f"• As       = {res_pos['as']:.2f} cm²\n"
+                f"• Armado   = {armado_inf}"
+            )
+            self.label_cuantia_pos.text = (
+                f"┌──────────────────────────────────────────────┐\n"
+                f"│        CÁLCULO CUANTÍA (MÍN / MÁX)           │\n"
+                f"├──────────────────────────────────────────────┤\n"
+                f"│ • ρmin = {rho_min:.4f}  |  As min = {As_min:.2f} cm²     │\n"
+                f"│ • ρmax = {rho_max:.4f}  |  As max = {As_max:.2f} cm²     │\n"
+                f"│ • Verif: {res_pos['verif']:<29} │\n"
+                f"└──────────────────────────────────────────────┘"
+            )
+            
+            # Textos para Momento Negativo (-)
+            self.label_tabla_neg.text = (
+                f"[ TABLA DE CÁLCULO - MOMENTO NEGATIVO (-) ]\n"
+                f"• Mu (-) = {mu_neg:.2f} Tn.m\n"
+                f"• K        = {res_neg['k']:.4f}\n"
+                f"• w        = {res_neg['w']:.4f}\n"
+                f"• ρ        = {res_neg['rho']:.4f}\n"
+                f"• As       = {res_neg['as']:.2f} cm²\n"
+                f"• Armado   = {armado_sup}"
+            )
+            self.label_cuantia_neg.text = (
+                f"┌──────────────────────────────────────────────┐\n"
+                f"│        CÁLCULO CUANTÍA (MÍN / MÁX)           │\n"
+                f"├──────────────────────────────────────────────┤\n"
+                f"│ • ρmin = {rho_min:.4f}  |  As min = {As_min:.2f} cm²     │\n"
+                f"│ • ρmax = {rho_max:.4f}  |  As max = {As_max:.2f} cm²     │\n"
+                f"│ • Verif: {res_neg['verif']:<29} │\n"
+                f"└──────────────────────────────────────────────┘"
+            )
+
+        except Exception as ex:
+            self.label_res1.text = f"❌ Error en datos: {str(ex)}"
+
+
+# --- APLICACIÓN PRINCIPAL ---
+class MainApp(App):
+    def build(self):
+        sm = ScreenManager()
+        sm.add_widget(CaratulaScreen(name='caratula'))
+        sm.add_widget(CalculadoraScreen(name='pantalla_principal'))
+        return sm
+
+
+if __name__ == '__main__':
+    MainApp().run()
