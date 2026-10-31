@@ -176,12 +176,15 @@ class BeamCanvasWidget(Widget):
         self.dibujar_texto(f"d = {self.d_cm:.1f} cm", v_x + v_w + 28, v_y + v_h / 2.0 - 10)
 
     def dibujar_texto(self, texto, x, y):
-        label = CoreLabel(text=texto, font_size=12, color=(1, 1, 1, 1))
-        label.refresh()
-        texture = label.texture
-        with self.canvas:
-            Color(1, 1, 1, 1)
-            Rectangle(texture=texture, pos=(x, y), size=texture.size)
+        try:
+            label = CoreLabel(text=texto, font_size=12, color=(1, 1, 1, 1))
+            label.refresh()
+            texture = label.texture
+            with self.canvas:
+                Color(1, 1, 1, 1)
+                Rectangle(texture=texture, pos=(x, y), size=texture.size)
+        except:
+            pass
 
 
 # --- PANTALLA 1: CARÁTULA DE INICIO ---
@@ -195,7 +198,7 @@ class CaratulaScreen(Screen):
         
         spacer = Widget()
         
-        btn_ingresar = Button(text="INGRESAR AL SISTEMA ➔", font_size=dp(18), bold=True, size_hint_y=None, height=dp(60), background_color=(0.1, 0.5, 0.8, 1))
+        btn_ingresar = Button(text="INGRESAR AL SISTEMA", font_size=dp(18), bold=True, size_hint_y=None, height=dp(60), background_color=(0.1, 0.5, 0.8, 1))
         btn_ingresar.bind(on_press=self.ir_a_calculadora)
 
         layout.add_widget(lbl_titulo)
@@ -259,7 +262,7 @@ class CalculadoraScreen(Screen):
 
         # PANEL ACERO CA
         self.box_acero_ca_panel = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(85), spacing=dp(5), padding=dp(5))
-        self.box_acero_ca_panel.add_widget(Label(text="⚙️ DATOS DEL ACERO LONGITUDINAL (Modo CA):", font_size=13, bold=True, color=(0.2, 0.7, 1, 1), size_hint_y=None, height=dp(20)))
+        self.box_acero_ca_panel.add_widget(Label(text="DATOS DEL ACERO LONGITUDINAL (Modo CA):", font_size=13, bold=True, color=(0.2, 0.7, 1, 1), size_hint_y=None, height=dp(20)))
         
         sub_grid_ca = GridLayout(cols=2, size_hint_y=None, height=dp(45), spacing=dp(10))
         sub_grid_ca.add_widget(Label(text="Cant. de barras:", font_size=12, halign='right'))
@@ -319,7 +322,7 @@ class CalculadoraScreen(Screen):
                 
             layout1.add_widget(row_box)
 
-        btn_calc = Button(text="🧮 EJECUTAR DISEÑO Y DIBUJAR SECCIÓN", size_hint_y=None, height=dp(50), background_color=(0.1, 0.6, 0.3, 1))
+        btn_calc = Button(text="EJECUTAR DISEÑO Y DIBUJAR SECCIÓN", size_hint_y=None, height=dp(50), background_color=(0.1, 0.6, 0.3, 1))
         btn_calc.bind(on_press=self.ejecutar_calculos)
         layout1.add_widget(btn_calc)
 
@@ -331,7 +334,7 @@ class CalculadoraScreen(Screen):
         self.screen1.add_widget(scroll1)
         self.sm.add_widget(self.screen1)
 
-        # PÁGINA 2 (Tab2): HOJA 2 - MOMENTO POSITIVO (+) CON SUS DOS CUADROS ORIGINALES
+        # PÁGINA 2 (Tab2): HOJA 2 - MOMENTO POSITIVO (+)
         self.screen2 = Screen(name='tab2')
         scroll2 = ScrollView()
         layout2 = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10), size_hint_y=None)
@@ -343,21 +346,15 @@ class CalculadoraScreen(Screen):
         layout2.add_widget(self.canvas_widget_pos)
 
         self.label_tabla_pos = Label(
-            text="[ TABLA DE CÁLCULO - MOMENTO POSITIVO ]\n• K = -\n• w = -\n• ρ = -\n• As = - cm²",
-            size_hint_y=None, height=dp(130), halign='left', valign='top', font_size=14
+            text="TABLA DE CÁLCULO - MOMENTO POSITIVO\n• K = -\n• w = -\n• ρ = -\n• As = - cm²",
+            size_hint_y=None, height=dp(100), halign='left', valign='top', font_size=13
         )
         self.label_tabla_pos.bind(size=self.label_tabla_pos.setter('text_size'))
         layout2.add_widget(self.label_tabla_pos)
 
         self.label_cuantia_pos = Label(
-            text="┌──────────────────────────────────────────────┐\n"
-                 "│        CÁLCULO CUANTÍA (MÍN / MÁX)           │\n"
-                 "├──────────────────────────────────────────────┤\n"
-                 "│ • ρmin = -          |  As min = - cm²        │\n"
-                 "│ • ρmax = -          |  As max = - cm²        │\n"
-                 "│ • Verif. (ρ y ρmax): -                       │\n"
-                 "└──────────────────────────────────────────────┘",
-            size_hint_y=None, height=dp(150), halign='left', valign='top', font_size=13
+            text="CÁLCULO CUANTÍA (MÍN / MÁX):\n• ρmin = - | As min = - cm²\n• ρmax = - | As max = - cm²\n• Verificación: -",
+            size_hint_y=None, height=dp(100), halign='left', valign='top', font_size=12
         )
         self.label_cuantia_pos.bind(size=self.label_cuantia_pos.setter('text_size'))
         layout2.add_widget(self.label_cuantia_pos)
@@ -366,7 +363,7 @@ class CalculadoraScreen(Screen):
         self.screen2.add_widget(scroll2)
         self.sm.add_widget(self.screen2)
 
-        # PÁGINA 3 (Tab3): HOJA 3 - MOMENTO NEGATIVO (-) CON SUS DOS CUADROS ORIGINALES
+        # PÁGINA 3 (Tab3): HOJA 3 - MOMENTO NEGATIVO (-)
         self.screen3 = Screen(name='tab3')
         scroll3 = ScrollView()
         layout3 = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(15), size_hint_y=None)
@@ -378,21 +375,15 @@ class CalculadoraScreen(Screen):
         layout3.add_widget(self.canvas_widget_neg)
 
         self.label_tabla_neg = Label(
-            text="[ TABLA DE CÁLCULO - MOMENTO NEGATIVO ]\n• K = -\n• w = -\n• ρ = -\n• As = - cm²",
-            size_hint_y=None, height=dp(130), halign='left', valign='top', font_size=14
+            text="TABLA DE CÁLCULO - MOMENTO NEGATIVO\n• K = -\n• w = -\n• ρ = -\n• As = - cm²",
+            size_hint_y=None, height=dp(100), halign='left', valign='top', font_size=13
         )
         self.label_tabla_neg.bind(size=self.label_tabla_neg.setter('text_size'))
         layout3.add_widget(self.label_tabla_neg)
 
         self.label_cuantia_neg = Label(
-            text="┌──────────────────────────────────────────────┐\n"
-                 "│        CÁLCULO CUANTÍA (MÍN / MÁX)           │\n"
-                 "├──────────────────────────────────────────────┤\n"
-                 "│ • ρmin = -          |  As min = - cm²        │\n"
-                 "│ • ρmax = -          |  As max = - cm²        │\n"
-                 "│ • Verif. (ρ y ρmax): -                       │\n"
-                 "└──────────────────────────────────────────────┘",
-            size_hint_y=None, height=dp(150), halign='left', valign='top', font_size=13
+            text="CÁLCULO CUANTÍA (MÍN / MÁX):\n• ρmin = - | As min = - cm²\n• ρmax = - | As max = - cm²\n• Verificación: -",
+            size_hint_y=None, height=dp(100), halign='left', valign='top', font_size=12
         )
         self.label_cuantia_neg.bind(size=self.label_cuantia_neg.setter('text_size'))
         layout3.add_widget(self.label_cuantia_neg)
@@ -526,50 +517,38 @@ class CalculadoraScreen(Screen):
                 self.canvas_widget_pos.actualizar_datos(b, h, d, modo_sa=False, opt_inf=opt_pos, cant_ca=int(self.ti_ca_cant.text), diam_ca=self.spinner_ca_diam.text)
                 self.canvas_widget_neg.actualizar_datos(b, h, d, modo_sa=False, opt_inf=opt_neg, cant_ca=int(self.ti_ca_cant.text), diam_ca=self.spinner_ca_diam.text)
 
-            self.label_res1.text = f"✅ Cálculo exitoso bajo NTP E.060\n• {info_d_str}\n• As mín = {As_min:.2f} cm²\n• Revise las pestañas (+) y (-)."
+            self.label_res1.text = f"Cálculo exitoso bajo NTP E.060\n• {info_d_str}\n• As mín = {As_min:.2f} cm²\n• Revise las pestañas (+) y (-)."
             
             # Textos para Momento Positivo (+)
             self.label_tabla_pos.text = (
-                f"[ TABLA DE CÁLCULO - MOMENTO POSITIVO (+) ]\n"
-                f"• Mu (+) = {mu_pos:.2f} Tn.m\n"
-                f"• K        = {res_pos['k']:.4f}\n"
-                f"• w        = {res_pos['w']:.4f}\n"
-                f"• ρ        = {res_pos['rho']:.4f}\n"
-                f"• As       = {res_pos['as']:.2f} cm²\n"
-                f"• Armado   = {armado_inf}"
+                f"TABLA DE CÁLCULO - MOMENTO POSITIVO (+)\n"
+                f"• Mu (+) = {mu_pos:.2f} Tn.m | K = {res_pos['k']:.4f}\n"
+                f"• w = {res_pos['w']:.4f} | ρ = {res_pos['rho']:.4f}\n"
+                f"• As = {res_pos['as']:.2f} cm² | Armado: {armado_inf}"
             )
             self.label_cuantia_pos.text = (
-                f"┌──────────────────────────────────────────────┐\n"
-                f"│        CÁLCULO CUANTÍA (MÍN / MÁX)           │\n"
-                f"├──────────────────────────────────────────────┤\n"
-                f"│ • ρmin = {rho_min:.4f}  |  As min = {As_min:.2f} cm²     │\n"
-                f"│ • ρmax = {rho_max:.4f}  |  As max = {As_max:.2f} cm²     │\n"
-                f"│ • Verif: {res_pos['verif']:<29} │\n"
-                f"└──────────────────────────────────────────────┘"
+                f"CÁLCULO CUANTÍA (MÍN / MÁX):\n"
+                f"• ρmin = {rho_min:.4f} | As min = {As_min:.2f} cm²\n"
+                f"• ρmax = {rho_max:.4f} | As max = {As_max:.2f} cm²\n"
+                f"• Verificación: {res_pos['verif']}"
             )
             
             # Textos para Momento Negativo (-)
             self.label_tabla_neg.text = (
-                f"[ TABLA DE CÁLCULO - MOMENTO NEGATIVO (-) ]\n"
-                f"• Mu (-) = {mu_neg:.2f} Tn.m\n"
-                f"• K        = {res_neg['k']:.4f}\n"
-                f"• w        = {res_neg['w']:.4f}\n"
-                f"• ρ        = {res_neg['rho']:.4f}\n"
-                f"• As       = {res_neg['as']:.2f} cm²\n"
-                f"• Armado   = {armado_sup}"
+                f"TABLA DE CÁLCULO - MOMENTO NEGATIVO (-)\n"
+                f"• Mu (-) = {mu_neg:.2f} Tn.m | K = {res_neg['k']:.4f}\n"
+                f"• w = {res_neg['w']:.4f} | ρ = {res_neg['rho']:.4f}\n"
+                f"• As = {res_neg['as']:.2f} cm² | Armado: {armado_sup}"
             )
             self.label_cuantia_neg.text = (
-                f"┌──────────────────────────────────────────────┐\n"
-                f"│        CÁLCULO CUANTÍA (MÍN / MÁX)           │\n"
-                f"├──────────────────────────────────────────────┤\n"
-                f"│ • ρmin = {rho_min:.4f}  |  As min = {As_min:.2f} cm²     │\n"
-                f"│ • ρmax = {rho_max:.4f}  |  As max = {As_max:.2f} cm²     │\n"
-                f"│ • Verif: {res_neg['verif']:<29} │\n"
-                f"└──────────────────────────────────────────────┘"
+                f"CÁLCULO CUANTÍA (MÍN / MÁX):\n"
+                f"• ρmin = {rho_min:.4f} | As min = {As_min:.2f} cm²\n"
+                f"• ρmax = {rho_max:.4f} | As max = {As_max:.2f} cm²\n"
+                f"• Verificación: {res_neg['verif']}"
             )
 
         except Exception as ex:
-            self.label_res1.text = f"❌ Error en datos: {str(ex)}"
+            self.label_res1.text = f"Error en datos: {str(ex)}"
 
 
 # --- APLICACIÓN PRINCIPAL ---
